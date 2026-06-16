@@ -130,6 +130,7 @@ export enum CanonicalIntent {
     // ==========================================
 
     // Motivation
+    DISQUALIFICATION = "screening.disqualification",
     WHY_COMPANY = "screening.whyCompany",
     WHY_ROLE = "screening.whyRole",
     WHY_YOU = "screening.whyYou",
@@ -604,5 +605,18 @@ export const INTENT_PATTERNS: {
         {
             intent: CanonicalIntent.COVER_LETTER,
             patterns: [/cover\s*letter/i, /supporting\s*document/i, /additional\s*file/i],
+        },
+        {
+            intent: CanonicalIntent.DISQUALIFICATION,
+            patterns: [
+                /terminated/i,
+                /misconduct/i,
+                /convicted/i,
+                /felony/i,
+                /misdemeanor/i,
+                /discharge/i,
+                /fired/i,
+                /disciplinary/i
+            ],
         },
     ];

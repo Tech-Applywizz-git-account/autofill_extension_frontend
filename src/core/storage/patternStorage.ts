@@ -66,7 +66,8 @@ const UNIVERSAL_SHAREABLE_INTENTS = [
     'application.allowSmsMessages', 'application.allowEmailUpdates', 'application.marketingConsent',
     'application.talentCommunityOptIn',
     'experience.yearsTotal', 'experience.managementExperience', 'experience.peopleManagement',
-    'education.level', 'education.degreeType', 'education.graduationStatus'
+    'education.level', 'education.degreeType', 'education.graduationStatus',
+    'screening.disqualification'
 ];
 
 // 2) Pattern-only intents (Global patterns YES, answers NO)
@@ -124,10 +125,29 @@ export class PatternStorage {
             // Cleanup: Filter out any corrupt patterns that are missing critical fields
             const validPatterns = patterns.filter(p => p && p.questionPattern && p.intent);
 
-            if (validPatterns.length !== patterns.length) {
-                console.warn(`[PatternStorage] 🧹 Cleaned up ${patterns.length - validPatterns.length} corrupt local patterns`);
+            // Cleanup: Filter out incorrect disqualification mappings (e.g. misconduct mapped to experience.company)
+            const cleanPatterns = validPatterns.filter(p => {
+                const qLower = p.questionPattern.toLowerCase();
+                const isDisqualification = qLower.includes('terminated') || 
+                                           qLower.includes('misconduct') || 
+                                           qLower.includes('convicted') || 
+                                           qLower.includes('felony') ||
+                                           qLower.includes('misdemeanor') ||
+                                           qLower.includes('discharge') ||
+                                           qLower.includes('fired');
+                
+                if (isDisqualification && p.intent !== 'screening.disqualification') {
+                    console.warn(`[PatternStorage] 🧹 Wiping incorrectly mapped disqualification pattern: "${p.questionPattern}" → ${p.intent}`);
+                    return false;
+                }
+                return true;
+            });
+
+            if (cleanPatterns.length !== patterns.length) {
+                console.warn(`[PatternStorage] 🧹 Cleaned up ${patterns.length - cleanPatterns.length} corrupt or incorrect local patterns`);
                 // Silently save back the cleaned list
-                this.saveLocalPatterns(validPatterns).catch(() => { });
+                this.saveLocalPatterns(cleanPatterns).catch(() => { });
+                return cleanPatterns;
             }
 
             return validPatterns;

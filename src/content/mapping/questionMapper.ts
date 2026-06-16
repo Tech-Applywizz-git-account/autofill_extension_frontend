@@ -1055,7 +1055,16 @@ export class QuestionMapper {
         if (exp) {
             // Company name — only in experience context (check for experience/employment-related keywords in question
             // or check that question doesn't also match education context keywords)
-            if ((qLower === 'company' || qLower === 'company name' || qLower === 'employer' ||
+            const isDisqualificationQuestion = qLower.includes('terminated') || 
+                                              qLower.includes('misconduct') || 
+                                              qLower.includes('convicted') || 
+                                              qLower.includes('felony') ||
+                                              qLower.includes('misdemeanor') ||
+                                              qLower.includes('discharge') ||
+                                              qLower.includes('fired');
+
+            if (!isDisqualificationQuestion && 
+                (qLower === 'company' || qLower === 'company name' || qLower === 'employer' ||
                 qLower.includes('employer name') || qLower.includes('organization name') ||
                 (qLower.includes('company') && !qLower.includes('school') && !qLower.includes('university'))) && exp.company) {
                 return validateWithOptions(exp.company);

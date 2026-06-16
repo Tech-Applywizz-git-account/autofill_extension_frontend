@@ -876,6 +876,224 @@ ___CSS_LOADER_EXPORT___.push([module.id, `.onboarding-container {
     .landing-btn { padding: 15px; }
     .btn-icon { font-size: 24px; }
     .btn-text strong { font-size: 18px; }
+}
+
+/* Fetching Loader Overlay */
+.fetching-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.98) 0%, rgba(118, 75, 162, 0.98) 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    color: white;
+    text-align: center;
+    padding: 20px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.fetching-loader {
+    width: 100%;
+    max-width: 450px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid rgba(255, 255, 255, 0.2);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 25px;
+}
+
+.fetching-loader h3 {
+    font-size: 22px;
+    margin: 0 0 10px 0;
+    font-weight: 600;
+}
+
+.fetching-loader p {
+    font-size: 14px;
+    opacity: 0.8;
+    margin: 0;
+    line-height: 1.5;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Authentication Page Styles */
+.auth-page {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: white;
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 0.4s ease;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.auth-logo {
+    width: 70px;
+    height: 70px;
+    margin-bottom: 15px;
+}
+
+.auth-header h1 {
+    font-size: 26px;
+    color: #333;
+    margin: 0 0 8px 0;
+    font-weight: 700;
+}
+
+.auth-header p {
+    color: #666;
+    font-size: 14px;
+    margin: 0;
+}
+
+.auth-alert {
+    padding: 12px 15px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 20px;
+    line-height: 1.4;
+    animation: slideIn 0.3s ease;
+}
+
+.auth-alert.error {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.auth-alert.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.auth-input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    font-size: 15px;
+    transition: all 0.2s;
+}
+
+.auth-input:focus {
+    border-color: #667eea;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.otp-input {
+    text-align: center;
+    font-size: 20px;
+    letter-spacing: 4px;
+    font-weight: 700;
+}
+
+.input-hint {
+    display: block;
+    font-size: 11px;
+    color: #999;
+    margin-top: 5px;
+}
+
+.auth-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+}
+
+.auth-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);
+}
+
+.auth-btn:disabled {
+    background: #e0e0e0;
+    color: #999;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.auth-btn.success-btn {
+    background: #00d084;
+    box-shadow: 0 4px 10px rgba(0, 208, 132, 0.2);
+}
+
+.auth-btn.success-btn:hover:not(:disabled) {
+    box-shadow: 0 6px 15px rgba(0, 208, 132, 0.3);
+}
+
+.auth-btn.link-btn {
+    background: transparent;
+    color: #667eea;
+    box-shadow: none;
+    font-weight: 500;
+    padding: 8px;
+    width: auto;
+}
+
+.auth-btn.link-btn:hover {
+    color: #764ba2;
+    transform: none;
+    text-decoration: underline;
+}
+
+.animation-slide-in {
+    animation: slideIn 0.3s ease;
 }`, ""]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
@@ -34669,30 +34887,36 @@ __webpack_require__.r(__webpack_exports__);
 const CONFIG = {
     // API Endpoints
     API: {
-        AI_SERVICE: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_AI_URL || 'https://autofill-extension-backend.onrender.com',
-        PATTERN_API: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_PATTERN_URL || 'https://autofill-extension-backend.onrender.com/api/patterns',
-        USER_DATA: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_USER_DATA_URL || 'https://autofill-extension-backend.onrender.com/api/user-data',
-        VERCEL_CRM: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_VERCEL_CRM_URL || 'https://ticketingtoolapplywizz.vercel.app/api/get-client-details',
-        BACKEND_URL: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_BACKEND_URL || 'http://localhost:3000',
-        STATS_URL: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_AI_URL || 'https://autofill-extension-backend.onrender.com',
-        AI_API_KEY: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_AI_API_KEY || '',
+        AI_SERVICE: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_AI_URL || 'https://autofill-extension-backend.onrender.com',
+        PATTERN_API: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_PATTERN_URL || 'https://autofill-extension-backend.onrender.com/api/patterns',
+        USER_DATA: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_USER_DATA_URL || 'https://autofill-extension-backend.onrender.com/api/user-data',
+        VERCEL_CRM: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_VERCEL_CRM_URL || 'https://ticketingtoolapplywizz.vercel.app/api/get-client-details',
+        CLIENT_ONBOARDING_API: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_CLIENT_ONBOARDING_API_URL || 'https://applywizz-crm-tool.vercel.app/api/client-onboarding-details',
+        RESUME_PARSER_API: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_RESUME_PARSER_URL || 'https://resume-parser-without-ai.onrender.com/parse',
+        BACKEND_URL: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_BACKEND_URL || 'http://localhost:3000',
+        STATS_URL: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_AI_URL || 'https://autofill-extension-backend.onrender.com',
+        AI_API_KEY: {"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_AI_API_KEY || '',
     },
     // Timeouts (milliseconds)
     TIMEOUTS: {
-        DROPDOWN_SCAN: parseInt({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_DROPDOWN_TIMEOUT || '3000', 10),
-        AI_REQUEST: parseInt({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_AI_TIMEOUT || '30000', 10),
-        PATTERN_SYNC: parseInt({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_PATTERN_SYNC_TIMEOUT || '5000', 10),
+        DROPDOWN_SCAN: parseInt({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_DROPDOWN_TIMEOUT || '3000', 10),
+        AI_REQUEST: parseInt({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_AI_TIMEOUT || '30000', 10),
+        PATTERN_SYNC: parseInt({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_PATTERN_SYNC_TIMEOUT || '5000', 10),
     },
     // Retry Configuration
     RETRIES: {
-        DROPDOWN_SCAN: parseInt({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_DROPDOWN_RETRIES || '2', 10),
-        AI_REQUEST: parseInt({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_AI_RETRIES || '1', 10),
+        DROPDOWN_SCAN: parseInt({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_DROPDOWN_RETRIES || '2', 10),
+        AI_REQUEST: parseInt({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_AI_RETRIES || '1', 10),
     },
     // Confidence Thresholds (0.0 to 1.0)
     THRESHOLDS: {
-        MIN_CONFIDENCE: parseFloat({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_MIN_CONFIDENCE || '0.6'),
-        FUZZY_MATCH: parseFloat({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_FUZZY_THRESHOLD || '0.7'),
-        PATTERN_MEMORY: parseFloat({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_PATTERN_MEMORY_CONFIDENCE || '0.95'),
+        MIN_CONFIDENCE: parseFloat({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_MIN_CONFIDENCE || '0.6'),
+        FUZZY_MATCH: parseFloat({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_FUZZY_THRESHOLD || '0.7'),
+        PATTERN_MEMORY: parseFloat({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_PATTERN_MEMORY_CONFIDENCE || '0.95'),
+    },
+    // Mapping Strategy
+    STRATEGY: {
+        MAPPING_PRIORITY: ({"REACT_APP_AI_API_KEY":"K3jR9zP2m7B5vW8xL1qN4hT6uS9aZ0cNdiokuhyikl","REACT_APP_AI_RETRIES":"1","REACT_APP_AI_TIMEOUT":"30000","REACT_APP_AI_URL":"http://localhost:8001","REACT_APP_BACKEND_URL":"http://localhost:3000","REACT_APP_CLIENT_ONBOARDING_API_URL":"https://applywizz-crm-tool.vercel.app/api/client-onboarding-details","REACT_APP_DROPDOWN_RETRIES":"2","REACT_APP_DROPDOWN_TIMEOUT":"3000","REACT_APP_FUZZY_THRESHOLD":"0.7","REACT_APP_MIN_CONFIDENCE":"0.6","REACT_APP_PATTERN_MEMORY_CONFIDENCE":"0.95","REACT_APP_PATTERN_SYNC_TIMEOUT":"5000","REACT_APP_PATTERN_URL":"http://localhost:8001/api/patterns","REACT_APP_USER_DATA_URL":"http://localhost:8001/api/user-data","REACT_APP_VERCEL_CRM_URL":"http://localhost:8001/api/get-client-details"}.REACT_APP_MAPPING_PRIORITY || 'AI_FIRST'),
     },
     // Canonical Field Patterns (for intent detection)
     CANONICAL_PATTERNS: {
@@ -34728,7 +34952,9 @@ const CONFIG = {
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   mapApiToProfile: () => (/* binding */ mapApiToProfile),
-/* harmony export */   mapMultiSourceToProfile: () => (/* binding */ mapMultiSourceToProfile)
+/* harmony export */   mapClientOnboardingToProfile: () => (/* binding */ mapClientOnboardingToProfile),
+/* harmony export */   mapMultiSourceToProfile: () => (/* binding */ mapMultiSourceToProfile),
+/* harmony export */   mapResumeParserToProfile: () => (/* binding */ mapResumeParserToProfile)
 /* harmony export */ });
 /* harmony import */ var _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../types/canonicalEnums */ "./src/types/canonicalEnums.ts");
 
@@ -34929,6 +35155,305 @@ function mapMultiSourceToProfile(localData, vercelData, currentProfile) {
 }
 function mapApiToProfile(apiResponse, currentProfile) {
     return mapMultiSourceToProfile(apiResponse, {}, currentProfile);
+}
+function mapClientOnboardingToProfile(clientOnboardingData, currentProfile) {
+    const profile = JSON.parse(JSON.stringify(currentProfile));
+    profile.apiFields = profile.apiFields || {};
+    const data = clientOnboardingData || {};
+    // --- 1. POPULATE RAW API FIELDS (for direct resolution) ---
+    Object.entries(data).forEach(([key, val]) => {
+        if (val !== undefined && val !== null) {
+            profile.apiFields[key] = val;
+        }
+    });
+    // --- 2. MAP TO CANONICAL FIELDS ---
+    // Personal Info
+    profile.personal.email = data.company_email || profile.personal.email;
+    profile.personal.phone = data.primary_phone || profile.personal.phone;
+    profile.personal.addressLine = data.full_address || profile.personal.addressLine;
+    profile.personal.city = data.city || profile.personal.city;
+    profile.personal.state = data.state_of_residence || profile.personal.state;
+    profile.personal.postalCode = data.zip_or_country || profile.personal.postalCode;
+    profile.personal.linkedin = data.linkedin_url || profile.personal.linkedin;
+    profile.personal.github = data.github_url || profile.personal.github;
+    profile.personal.portfolio = data.portfolio_url || profile.personal.portfolio;
+    // First and last names
+    if (data.first_name) {
+        profile.personal.firstName = data.first_name;
+    }
+    if (data.last_name) {
+        profile.personal.lastName = data.last_name;
+    }
+    if (!data.first_name && !data.last_name && data.full_name) {
+        const parts = data.full_name.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            profile.personal.firstName = parts[0];
+            profile.personal.lastName = parts.slice(1).join(" ");
+        }
+        else {
+            profile.personal.firstName = parts[0];
+        }
+    }
+    if (data.middle_name) {
+        profile.personal.preferredName = data.middle_name;
+    }
+    // Education mapping
+    if (data.university_name || data.highest_education) {
+        profile.education = [
+            {
+                school: data.university_name || "",
+                degree: data.highest_education || "",
+                major: data.main_subject || "",
+                startDate: "",
+                endDate: data.graduation_year ? String(data.graduation_year) : "",
+                gpa: data.cumulative_gpa ? String(data.cumulative_gpa) : "",
+                currentlyStudying: false
+            }
+        ];
+    }
+    // Experience mapping
+    let expList = [];
+    const formatDate = (dateStr) => {
+        if (typeof dateStr !== 'string')
+            return "";
+        const cleaned = dateStr.trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(cleaned)) {
+            return cleaned.substring(0, 7); // convert YYYY-MM-DD to YYYY-MM
+        }
+        return cleaned;
+    };
+    if (data.employment_history) {
+        let rawHistory = data.employment_history;
+        if (typeof rawHistory === 'string') {
+            try {
+                rawHistory = JSON.parse(rawHistory);
+            }
+            catch (e) {
+                console.error("Failed to parse employment_history string", e);
+            }
+        }
+        if (Array.isArray(rawHistory)) {
+            expList = rawHistory.map((item) => ({
+                company: item.company_name || item.company || "",
+                title: item.job_title || item.job_role || item.title || "",
+                startDate: formatDate(item.start_date),
+                endDate: formatDate(item.end_date),
+                currentlyWorking: item.is_current === true || !item.end_date,
+                location: item.location || "",
+                jobType: item.job_type || "Full-time",
+                bullets: Array.isArray(item.bullets) ? item.bullets : (item.bullets ? [item.bullets] : [])
+            }));
+        }
+    }
+    // Fallback if employment_history was empty or failed to parse
+    if (expList.length === 0 && (data.recent_company_name || data.recent_job_title)) {
+        expList = [
+            {
+                company: data.recent_company_name || "",
+                title: data.recent_job_title || "",
+                startDate: formatDate(data.employment_start_date),
+                endDate: formatDate(data.employment_end_date),
+                currentlyWorking: !data.employment_end_date,
+                location: "",
+                jobType: "Full-time",
+                bullets: []
+            }
+        ];
+    }
+    if (expList.length > 0) {
+        profile.experience = expList;
+    }
+    // Helper for boolean strings or raw booleans
+    const isYes = (val) => val === true || (typeof val === 'string' && val.toLowerCase() === 'yes') || (typeof val === 'string' && val.toLowerCase() === 'true');
+    // Work Authorization
+    profile.workAuthorization.authorizedUS = isYes(data.eligible_to_work_in_us);
+    profile.workAuthorization.needsSponsorship = isYes(data.require_future_sponsorship) || isYes(data.needs_sponsorship);
+    profile.workAuthorization.driverLicense = isYes(data.has_valid_driver_license);
+    profile.preferences.willingToRelocate = isYes(data.willing_to_relocate);
+    // EEO Mapping
+    if (data.gender) {
+        const g = data.gender.toLowerCase();
+        if (g.includes("male") && !g.includes("female"))
+            profile.eeo.gender = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.Gender.MALE;
+        else if (g.includes("female"))
+            profile.eeo.gender = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.Gender.FEMALE;
+        else if (g.includes("non_binary") || g.includes("non-binary"))
+            profile.eeo.gender = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.Gender.NON_BINARY;
+        else
+            profile.eeo.gender = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.Gender.DECLINE;
+    }
+    if (data.is_hispanic_latino) {
+        const h = String(data.is_hispanic_latino).toLowerCase();
+        profile.eeo.hispanic = h.includes("yes") || h === "true" ? _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.YesNoDecline.YES : (h.includes("no") || h === "false" ? _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.YesNoDecline.NO : _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.YesNoDecline.DECLINE);
+    }
+    if (data.race_ethnicity) {
+        const r = data.race_ethnicity.toLowerCase();
+        if (r.includes("asian"))
+            profile.eeo.race = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.Race.ASIAN;
+        else if (r.includes("black"))
+            profile.eeo.race = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.Race.BLACK;
+        else if (r.includes("white"))
+            profile.eeo.race = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.Race.WHITE;
+        else if (r.includes("hispanic"))
+            profile.eeo.race = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.Race.HISPANIC;
+        else
+            profile.eeo.race = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.Race.DECLINE;
+    }
+    if (data.disability_status) {
+        const d = String(data.disability_status).toLowerCase();
+        profile.eeo.disability = d.includes("yes") || d.includes("disabled") || d === "true" ? _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.YesNoDecline.YES : (d.includes("no") || d === "false" ? _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.YesNoDecline.NO : _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.YesNoDecline.DECLINE);
+    }
+    if (data.veteran_status) {
+        const v = String(data.veteran_status).toLowerCase();
+        profile.eeo.veteran = (v.includes("am not") || v.includes("not a") || v === "false" || v.includes("no")) ? _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.YesNoDecline.NO : _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.YesNoDecline.YES;
+    }
+    if (data.sexual_orientation) {
+        const s = data.sexual_orientation.toLowerCase();
+        if (s.includes("heterosexual") || s.includes("straight"))
+            profile.eeo.sexualOrientation = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.SexualOrientation.HETEROSEXUAL;
+        else if (s.includes("gay"))
+            profile.eeo.sexualOrientation = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.SexualOrientation.GAY;
+        else if (s.includes("lesbian"))
+            profile.eeo.sexualOrientation = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.SexualOrientation.LESBIAN;
+        else if (s.includes("bisexual"))
+            profile.eeo.sexualOrientation = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.SexualOrientation.BISEXUAL;
+        else if (s.includes("pansexual"))
+            profile.eeo.sexualOrientation = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.SexualOrientation.PANSEXUAL;
+        else if (s.includes("asexual"))
+            profile.eeo.sexualOrientation = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.SexualOrientation.ASEXUAL;
+        else if (s.includes("queer"))
+            profile.eeo.sexualOrientation = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.SexualOrientation.QUEER;
+        else
+            profile.eeo.sexualOrientation = _types_canonicalEnums__WEBPACK_IMPORTED_MODULE_0__.SexualOrientation.DECLINE;
+    }
+    // Application specific mappings
+    profile.application = {
+        ...profile.application,
+        previouslyEmployed: isYes(data.worked_for_company_before),
+        governmentBackground: false,
+        previouslyApplied: false,
+        hasRelatives: isYes(data.has_relatives_in_company)
+    };
+    // Metadata
+    profile.metadata = {
+        ...profile.metadata,
+        apiData: {
+            ...profile.metadata?.apiData,
+            lead: data,
+            extractedData: {},
+            lastFetched: new Date().toISOString()
+        }
+    };
+    return profile;
+}
+/**
+ * Maps the response from resume-parser-without-ai.onrender.com/parse to CanonicalProfile.
+ * Focused on: education_history, skills, certifications, employment_history, and personal contact info.
+ */
+function mapResumeParserToProfile(parserData, currentProfile) {
+    const profile = JSON.parse(JSON.stringify(currentProfile));
+    profile.apiFields = profile.apiFields || {};
+    const data = parserData || {};
+    // --- Personal Info (only fill if not already set from onboarding details) ---
+    if (!profile.personal.firstName && data.first_name) {
+        profile.personal.firstName = data.first_name;
+    }
+    if (!profile.personal.lastName && data.last_name) {
+        profile.personal.lastName = data.last_name;
+    }
+    if (!profile.personal.email && data.personal_email) {
+        profile.personal.email = data.personal_email;
+    }
+    if (!profile.personal.phone && data.primary_phone) {
+        profile.personal.phone = data.primary_phone;
+    }
+    if (!profile.personal.linkedin && data.linkedin_url) {
+        profile.personal.linkedin = data.linkedin_url;
+    }
+    if (!profile.personal.github && data.github_url) {
+        profile.personal.github = data.github_url;
+    }
+    if (!profile.personal.portfolio && data.portfolio_url) {
+        profile.personal.portfolio = data.portfolio_url;
+    }
+    // --- Education History ---
+    if (Array.isArray(data.education_history) && data.education_history.length > 0) {
+        profile.education = data.education_history.map((edu) => ({
+            school: edu.institution || edu.university || edu.school || edu.college || "",
+            degree: edu.degree || edu.qualification || "",
+            major: edu.field_of_study || edu.major || edu.subject || "",
+            startDate: edu.start_date || "",
+            endDate: edu.end_date || edu.graduation_year ? String(edu.end_date || edu.graduation_year) : "",
+            gpa: edu.gpa || edu.grade || "",
+            currentlyStudying: !edu.end_date && !edu.graduation_year
+        }));
+    }
+    // --- Employment History (from parser) ---
+    // Only overwrite if we don't already have real employment data from client onboarding
+    const hasOnboardingExp = profile.experience.length > 0 &&
+        profile.experience.some(e => e.company && e.company.length > 0 && e.startDate);
+    if (!hasOnboardingExp && Array.isArray(data.employment_history) && data.employment_history.length > 0) {
+        // Filter out entries without a company or job title (parser sometimes generates noise rows)
+        const cleanedHistory = data.employment_history.filter((item) => item.company_name?.trim() || item.job_title?.trim());
+        if (cleanedHistory.length > 0) {
+            profile.experience = cleanedHistory.map((item) => {
+                let startDate = "";
+                let endDate = "";
+                // Parser returns dates like "01-06-2025 - Present" or "01-08-2022 - 01-12-2023"
+                if (item.dates) {
+                    const parts = item.dates.split(" - ").map((s) => s.trim());
+                    const parsePartDate = (dateStr) => {
+                        if (!dateStr || dateStr.toLowerCase() === "present")
+                            return "";
+                        // DD-MM-YYYY → YYYY-MM
+                        const match = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+                        if (match)
+                            return `${match[3]}-${match[2]}`;
+                        // YYYY-MM-DD → YYYY-MM
+                        const iso = dateStr.match(/^(\d{4}-\d{2})/);
+                        if (iso)
+                            return iso[1];
+                        return dateStr;
+                    };
+                    startDate = parsePartDate(parts[0] || "");
+                    endDate = parts[1] && parts[1].toLowerCase() !== "present" ? parsePartDate(parts[1]) : "";
+                }
+                return {
+                    company: item.company_name || "",
+                    title: item.job_title || "",
+                    startDate,
+                    endDate,
+                    currentlyWorking: !item.dates || item.dates.toLowerCase().includes("present"),
+                    location: item.location || "",
+                    jobType: "Full-time",
+                    bullets: item.description
+                        ? item.description.split("•").map((s) => s.trim()).filter(Boolean)
+                        : []
+                };
+            });
+        }
+    }
+    // --- Skills ---
+    if (Array.isArray(data.skills) && data.skills.length > 0) {
+        const parsedSkills = data.skills
+            .join(",") // combine into one string
+            .split(/[,•\n]+/) // split on commas, bullets, newlines
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0 && s.length <= 60); // ignore empty / overly long items
+        const combined = Array.from(new Set([...profile.skills, ...parsedSkills]));
+        profile.skills = combined;
+    }
+    // --- Certifications ---
+    if (Array.isArray(data.certifications) && data.certifications.length > 0) {
+        const parsedCerts = data.certifications
+            .map((c) => c.replace(/^[•\-\s]+/, "").trim())
+            .filter((c) => c.length > 0);
+        profile.certifications = Array.from(new Set([
+            ...(profile.certifications || []),
+            ...parsedCerts
+        ]));
+    }
+    return profile;
 }
 
 
@@ -35691,16 +36216,296 @@ const DEFAULT_PROFILE_DATA = {
         governmentBackground: false
     }
 };
+const blobToBase64 = (blob) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+                resolve(reader.result);
+            }
+            else {
+                reject(new Error("FileReader result is not a string"));
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
+const fetchAndParseResume = async (resumePath, currentProfile, resumeUrlFromApi, onStatusUpdate) => {
+    const s3BaseUrl = 'https://applywizz-prod.s3.us-east-2.amazonaws.com';
+    const normalizedPath = resumePath.startsWith('/') ? resumePath : `/${resumePath}`;
+    const resumeUrl = resumeUrlFromApi || `${s3BaseUrl}${normalizedPath}`;
+    const fileName = resumePath.substring(resumePath.lastIndexOf('/') + 1) || "resume.pdf";
+    if (onStatusUpdate)
+        onStatusUpdate("Downloading resume from storage...");
+    console.log(`[Onboarding] Fetching resume from URL: ${resumeUrl}`);
+    const res = await fetch(resumeUrl);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch resume from S3: ${res.statusText}`);
+    }
+    const blob = await res.blob();
+    // Convert to base64 to store in documents.resume (as if uploaded manually)
+    const base64 = await blobToBase64(blob);
+    let updatedProfile = {
+        ...currentProfile,
+        documents: {
+            resume: {
+                base64,
+                fileName
+            },
+            coverLetter: currentProfile.documents?.coverLetter
+        }
+    };
+    // Post to resume parser API
+    if (onStatusUpdate)
+        onStatusUpdate("Extracting skills and education from resume...");
+    console.log(`[Onboarding] Uploading resume to parser API: ${_config__WEBPACK_IMPORTED_MODULE_6__.CONFIG.API.RESUME_PARSER_API}`);
+    const formData = new FormData();
+    formData.append('file', blob, fileName);
+    const parserRes = await fetch(_config__WEBPACK_IMPORTED_MODULE_6__.CONFIG.API.RESUME_PARSER_API, {
+        method: 'POST',
+        body: formData
+    });
+    if (!parserRes.ok) {
+        throw new Error(`Resume parser API failed with status ${parserRes.status}`);
+    }
+    const parserJson = await parserRes.json();
+    console.log(`[Onboarding] Resume parser response:`, parserJson);
+    // Map parsed data into profile
+    if (onStatusUpdate)
+        onStatusUpdate("Mapping and saving parsed details...");
+    updatedProfile = (0,_core_mapping_apiMapper__WEBPACK_IMPORTED_MODULE_4__.mapResumeParserToProfile)(parserJson, updatedProfile);
+    return updatedProfile;
+};
+const fetchOnboardingDetailsFromApi = async (leadId) => {
+    // Try local CRM first, then fallback to production Vercel
+    const localUrl = `${_config__WEBPACK_IMPORTED_MODULE_6__.CONFIG.API.BACKEND_URL}/api/client-onboarding-details?lead_id=${encodeURIComponent(leadId)}`;
+    const prodUrl = `${_config__WEBPACK_IMPORTED_MODULE_6__.CONFIG.API.CLIENT_ONBOARDING_API}?lead_id=${encodeURIComponent(leadId)}`;
+    try {
+        console.log(`[Onboarding] Trying to fetch client onboarding details from local CRM: ${localUrl}`);
+        const response = await fetch(localUrl);
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.success && data.data) {
+                console.log("[Onboarding] Successfully fetched onboarding details from local CRM.");
+                return data;
+            }
+        }
+    }
+    catch (err) {
+        console.warn(`[Onboarding] Local CRM fetch failed, falling back to Vercel:`, err);
+    }
+    console.log(`[Onboarding] Fetching client onboarding details from Vercel CRM: ${prodUrl}`);
+    const response = await fetch(prodUrl);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch onboarding details from Vercel: ${response.status}`);
+    }
+    const data = await response.json();
+    if (!data || !data.success) {
+        throw new Error(data?.error || "Invalid response format from Vercel CRM");
+    }
+    return data;
+};
+const AuthPage = ({ onSuccess }) => {
+    const [email, setEmail] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)("");
+    const [otp, setOtp] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)("");
+    const [otpSent, setOtpSent] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
+    const [loading, setLoading] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
+    const [error, setError] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)("");
+    const [statusMessage, setStatusMessage] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)("");
+    const validateEmail = (val) => {
+        const trimmed = val.trim().toLowerCase();
+        return trimmed.endsWith("@applywizz.com") || trimmed.endsWith("@applywizz.ai");
+    };
+    const handleSendOtp = async () => {
+        setError("");
+        setStatusMessage("");
+        const trimmedEmail = email.trim().toLowerCase();
+        if (!validateEmail(trimmedEmail)) {
+            setError("Access denied: Email must end with @applywizz.com or @applywizz.ai");
+            return;
+        }
+        setLoading(true);
+        try {
+            await new Promise((resolve, reject) => {
+                chrome.runtime.sendMessage({
+                    action: 'proxyFetch',
+                    url: `${_config__WEBPACK_IMPORTED_MODULE_6__.CONFIG.API.AI_SERVICE}/api/auth/send-otp`,
+                    options: {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: trimmedEmail })
+                    }
+                }, (response) => {
+                    if (chrome.runtime.lastError)
+                        reject(new Error(chrome.runtime.lastError.message));
+                    else if (response && response.success)
+                        resolve(response.data);
+                    else
+                        reject(new Error(response?.error || 'Failed to send OTP'));
+                });
+            });
+            setOtpSent(true);
+            setStatusMessage("Verification code sent to your email!");
+        }
+        catch (err) {
+            console.error("Send OTP error:", err);
+            setError(err.message || "Failed to send OTP. Please try again.");
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    const handleVerifyOtp = async () => {
+        setError("");
+        setStatusMessage("");
+        const trimmedEmail = email.trim().toLowerCase();
+        const trimmedOtp = otp.trim();
+        if (!trimmedOtp || trimmedOtp.length !== 6) {
+            setError("Please enter a valid 6-digit verification code");
+            return;
+        }
+        setLoading(true);
+        try {
+            const response = await new Promise((resolve, reject) => {
+                chrome.runtime.sendMessage({
+                    action: 'proxyFetch',
+                    url: `${_config__WEBPACK_IMPORTED_MODULE_6__.CONFIG.API.AI_SERVICE}/api/auth/verify-otp`,
+                    options: {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: trimmedEmail, otp: trimmedOtp })
+                    }
+                }, (response) => {
+                    if (chrome.runtime.lastError)
+                        reject(new Error(chrome.runtime.lastError.message));
+                    else if (response && response.success)
+                        resolve(response.data);
+                    else
+                        reject(new Error(response?.error || 'Invalid verification code'));
+                });
+            });
+            if (response && response.token) {
+                // Save to local storage
+                await chrome.storage.local.set({
+                    auth_token: response.token,
+                    auth_email: trimmedEmail
+                });
+                onSuccess(trimmedEmail, response.token);
+            }
+            else {
+                throw new Error("Invalid response structure from authentication server");
+            }
+        }
+        catch (err) {
+            console.error("Verify OTP error:", err);
+            setError(err.message || "Verification failed. Please check your code.");
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "auth-page" },
+        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "auth-card" },
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "auth-header" },
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("img", { src: "/assets/icon128.png", alt: "Logo", className: "auth-logo" }),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h1", null, "ApplyWizz Portal"),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("p", null, "Enter your professional email to authenticate")),
+            error && react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "auth-alert error" },
+                "\u26A0\uFE0F ",
+                error),
+            statusMessage && react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "auth-alert success" },
+                "\u2705 ",
+                statusMessage),
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "auth-form" },
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-field" },
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", null, "Email Address"),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "username@applywizz.com", disabled: loading || otpSent, className: "auth-input" }),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "input-hint" }, "Must end with @applywizz.com or @applywizz.ai")),
+                otpSent && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-field animation-slide-in" },
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", null, "Verification Code (OTP)"),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "text", value: otp, onChange: (e) => setOtp(e.target.value.replace(/\D/g, "").substring(0, 6)), placeholder: "Enter 6-digit OTP", disabled: loading, className: "auth-input otp-input", maxLength: 6 }))),
+                !otpSent ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { onClick: handleSendOtp, disabled: loading || !email.trim(), className: "auth-btn" }, loading ? "Sending..." : "Send Verification Code")) : (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: '10px' } },
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { onClick: handleVerifyOtp, disabled: loading || otp.length !== 6, className: "auth-btn success-btn" }, loading ? "Verifying..." : "Verify & Login"),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { onClick: () => {
+                            setOtpSent(false);
+                            setOtp("");
+                            setError("");
+                            setStatusMessage("");
+                        }, disabled: loading, className: "auth-btn link-btn" }, "Change Email")))))));
+};
 const Onboarding = () => {
     const [step, setStep] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(0); // 0 is Landing Page
     const [profile, setProfile] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(_types_canonicalProfile__WEBPACK_IMPORTED_MODULE_1__.EMPTY_PROFILE);
     const [fetching, setFetching] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
+    const [fetchingStatus, setFetchingStatus] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)("");
     const [apwId, setApwId] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)("");
-    // Support Edit Mode
+    const [authenticated, setAuthenticated] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
+    const [authEmail, setAuthEmail] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)("");
+    const [checkingAuth, setCheckingAuth] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(true);
+    // Support Edit Mode and auto-fetch from lead_id/leadId
     (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
+        const checkAuth = async () => {
+            try {
+                const stored = await chrome.storage.local.get(["auth_token", "auth_email"]);
+                if (stored.auth_token && stored.auth_email) {
+                    setAuthenticated(true);
+                    setAuthEmail(stored.auth_email);
+                }
+            }
+            catch (err) {
+                console.error("Auth check failed:", err);
+            }
+            finally {
+                setCheckingAuth(false);
+            }
+        };
+        checkAuth();
         const urlParams = new URLSearchParams(window.location.search);
         const mode = urlParams.get('mode');
-        if (mode === 'edit') {
+        const leadId = urlParams.get('lead_id') || urlParams.get('leadId');
+        if (leadId) {
+            const fetchOnboardingDetails = async () => {
+                setFetching(true);
+                setFetchingStatus("Connecting to CRM and loading details...");
+                try {
+                    console.log(`[Onboarding] Auto-fetching details for lead ID: ${leadId}`);
+                    const resJson = await fetchOnboardingDetailsFromApi(leadId);
+                    if (resJson && resJson.success && resJson.data) {
+                        let mappedProfile = (0,_core_mapping_apiMapper__WEBPACK_IMPORTED_MODULE_4__.mapClientOnboardingToProfile)(resJson.data, profile);
+                        mappedProfile.metadata = {
+                            ...mappedProfile.metadata,
+                            apwId: leadId
+                        };
+                        if (resJson.data.resume_path) {
+                            try {
+                                console.log(`[Onboarding] Found resume_path: ${resJson.data.resume_path}. Starting fetch and parse...`);
+                                mappedProfile = await fetchAndParseResume(resJson.data.resume_path, mappedProfile, resJson.data.resume_url, setFetchingStatus);
+                                console.log("[Onboarding] Resume successfully fetched and parsed.");
+                            }
+                            catch (parseErr) {
+                                console.error("[Onboarding] Failed to fetch or parse resume from S3/Supabase:", parseErr);
+                                alert(`Profile details loaded, but failed to fetch/parse resume: ${parseErr.message}`);
+                            }
+                        }
+                        setProfile(mappedProfile);
+                        await (0,_core_storage_profileStorage__WEBPACK_IMPORTED_MODULE_3__.saveProfile)(mappedProfile);
+                        console.log("[Onboarding] Successfully loaded client onboarding details from URL query parameter");
+                        setStep(1); // Go straight to step 1 (Personal Info) to let them view
+                    }
+                }
+                catch (error) {
+                    console.error("[Onboarding] Failed to auto-fetch onboarding details:", error);
+                    alert(`Failed to load onboarding details for Lead ID ${leadId}: ${error.message}`);
+                }
+                finally {
+                    setFetching(false);
+                    setFetchingStatus("");
+                }
+            };
+            fetchOnboardingDetails();
+        }
+        else if (mode === 'edit') {
             const loadExistingProfile = async () => {
                 const existing = await (0,_core_storage_profileStorage__WEBPACK_IMPORTED_MODULE_3__.loadProfile)();
                 if (existing) {
@@ -35738,18 +36543,53 @@ const Onboarding = () => {
     };
     const handleApiFetch = async () => {
         if (!apwId.trim()) {
-            alert("Please enter a valid APW ID");
+            alert("Please enter a valid ID");
             return;
         }
         const normalizedId = apwId.trim().toUpperCase();
         setApwId(normalizedId);
         setFetching(true);
+        setFetchingStatus("Connecting to CRM and loading details...");
         try {
-            // 1. Fetch from Local Lead Details API
+            // First try fetching from Client Onboarding Details API
+            let isOnboardingSuccess = false;
+            try {
+                const onboardingJson = await fetchOnboardingDetailsFromApi(normalizedId);
+                if (onboardingJson && onboardingJson.success && onboardingJson.data) {
+                    let mappedProfile = (0,_core_mapping_apiMapper__WEBPACK_IMPORTED_MODULE_4__.mapClientOnboardingToProfile)(onboardingJson.data, profile);
+                    mappedProfile.metadata = {
+                        ...mappedProfile.metadata,
+                        apwId: normalizedId
+                    };
+                    if (onboardingJson.data.resume_path) {
+                        try {
+                            console.log(`[Onboarding] Found resume_path: ${onboardingJson.data.resume_path}. Starting fetch and parse...`);
+                            mappedProfile = await fetchAndParseResume(onboardingJson.data.resume_path, mappedProfile, onboardingJson.data.resume_url, setFetchingStatus);
+                            alert("Profile and resume successfully fetched and parsed!");
+                        }
+                        catch (parseErr) {
+                            console.error("[Onboarding] Failed to fetch or parse resume from S3/Supabase:", parseErr);
+                            alert(`Profile details loaded, but failed to fetch/parse resume: ${parseErr.message}`);
+                        }
+                    }
+                    else {
+                        alert("Profile successfully fetched from Client Onboarding Details!");
+                    }
+                    setProfile(mappedProfile);
+                    await (0,_core_storage_profileStorage__WEBPACK_IMPORTED_MODULE_3__.saveProfile)(mappedProfile);
+                    isOnboardingSuccess = true;
+                }
+            }
+            catch (err) {
+                console.warn("Client Onboarding API fetch failed, trying fallback sources:", err);
+            }
+            if (isOnboardingSuccess) {
+                return;
+            }
+            // Fallback: Fetch from Local Lead Details API
             let localData = {};
             let isLocalSuccess = false;
             try {
-                // Changed to use configurable Backend URL
                 const backendUrl = _config__WEBPACK_IMPORTED_MODULE_6__.CONFIG.API.BACKEND_URL;
                 const localResponse = await fetch(`${backendUrl}/api/lead-details/${normalizedId}`);
                 if (!localResponse.ok) {
@@ -35762,9 +36602,8 @@ const Onboarding = () => {
             }
             catch (e) {
                 console.warn("Local API unreachable, skipping:", e);
-                // Continue execution to try Vercel API
             }
-            // 2. Fetch from Vercel Client Details API
+            // Fallback: Fetch from Vercel Client Details API
             const vercelUrl = _config__WEBPACK_IMPORTED_MODULE_6__.CONFIG.API.VERCEL_CRM;
             const vercelResponse = await fetch(`${vercelUrl}?applywizz_id=${normalizedId}`);
             if (!vercelResponse.ok) {
@@ -35772,9 +36611,9 @@ const Onboarding = () => {
             }
             const vercelData = vercelResponse.ok ? await vercelResponse.json() : {};
             if (!isLocalSuccess && !vercelResponse.ok) {
-                throw new Error("Failed to fetch data from both sources.");
+                throw new Error("Failed to fetch data from all sources.");
             }
-            // 3. Map multi-source data to profile
+            // Map multi-source data to profile
             const mappedProfile = (0,_core_mapping_apiMapper__WEBPACK_IMPORTED_MODULE_4__.mapMultiSourceToProfile)(localData, vercelData, profile);
             // Set the apwId in metadata
             mappedProfile.metadata = {
@@ -35783,7 +36622,7 @@ const Onboarding = () => {
             };
             setProfile(mappedProfile);
             await (0,_core_storage_profileStorage__WEBPACK_IMPORTED_MODULE_3__.saveProfile)(mappedProfile);
-            alert("Profile successfully fetched from both API sources!");
+            alert("Profile successfully fetched from fallback API sources!");
         }
         catch (error) {
             console.error("API Fetch Error:", error);
@@ -35791,6 +36630,7 @@ const Onboarding = () => {
         }
         finally {
             setFetching(false);
+            setFetchingStatus("");
         }
     };
     const handleSaveProfile = async () => {
@@ -35805,8 +36645,30 @@ const Onboarding = () => {
     const updateProfile = (updates) => {
         setProfile({ ...profile, ...updates });
     };
+    // Called by StepPersonal after resume parsing succeeds — replaces profile with enriched version
+    const handleResumeParse = async (enrichedProfile) => {
+        setProfile(enrichedProfile);
+        await (0,_core_storage_profileStorage__WEBPACK_IMPORTED_MODULE_3__.saveProfile)(enrichedProfile);
+    };
     const totalSteps = 5;
+    if (checkingAuth) {
+        return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "onboarding-container", style: { display: 'flex', justifyContent: 'center', alignItems: 'center' } },
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "fetching-loader" },
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "spinner" }),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h3", null, "Verifying session..."))));
+    }
+    if (!authenticated) {
+        return react__WEBPACK_IMPORTED_MODULE_0___default().createElement(AuthPage, { onSuccess: (email, token) => {
+                setAuthenticated(true);
+                setAuthEmail(email);
+            } });
+    }
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "onboarding-container" },
+        fetching && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "fetching-overlay" },
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "fetching-loader" },
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "spinner" }),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h3", null, fetchingStatus || "Loading..."),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("p", null, "Please wait while we retrieve your profile details and parse your resume.")))),
         step > 0 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "onboarding-progress" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "progress-steps" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: `progress-step ${step >= 1 ? "active" : ""}` }, "1. Personal"),
@@ -35818,14 +36680,16 @@ const Onboarding = () => {
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "progress-fill", style: { width: `${(step / totalSteps) * 100}%` } })))),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "onboarding-content" },
             step === 0 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_LandingPage__WEBPACK_IMPORTED_MODULE_5__["default"], { onNewUser: handleNewUser, onExistingUser: handleExistingUser, loading: fetching })),
-            step === 1 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(StepPersonal, { profile: profile, updateProfile: updateProfile, apwId: apwId, setApwId: setApwId, onApiFetch: handleApiFetch, fetching: fetching, onNext: () => setStep(2), onBack: () => setStep(0) })),
+            step === 1 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(StepPersonal, { profile: profile, updateProfile: updateProfile, apwId: apwId, setApwId: setApwId, onApiFetch: handleApiFetch, onResumeParse: handleResumeParse, fetching: fetching, onNext: () => setStep(2), onBack: () => setStep(0) })),
             step === 2 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(StepEducation, { profile: profile, updateProfile: updateProfile, onNext: () => setStep(3), onBack: () => setStep(1) })),
             step === 3 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(StepExperience, { profile: profile, updateProfile: updateProfile, onNext: () => setStep(4), onBack: () => setStep(2) })),
             step === 4 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(StepSkills, { profile: profile, updateProfile: updateProfile, onNext: () => setStep(5), onBack: () => setStep(3) })),
             step === 5 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(StepEqualEmployment, { profile: profile, updateProfile: updateProfile, onFinish: handleSaveProfile, onBack: () => setStep(4), fetching: fetching, setFetching: setFetching })))));
 };
 // Step Components
-const StepPersonal = ({ profile, updateProfile, apwId, setApwId, onApiFetch, fetching, onNext, onBack }) => {
+const StepPersonal = ({ profile, updateProfile, apwId, setApwId, onApiFetch, onResumeParse, fetching, onNext, onBack }) => {
+    const [resumeParsing, setResumeParsing] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(false);
+    const [parseStatus, setParseStatus] = react__WEBPACK_IMPORTED_MODULE_0___default().useState({ type: 'none', message: '' });
     const handlePrefill = () => {
         updateProfile(DEFAULT_PROFILE_DATA);
         alert("Profile prefilled with default AML Analyst data!");
@@ -35839,6 +36703,7 @@ const StepPersonal = ({ profile, updateProfile, apwId, setApwId, onApiFetch, fet
             alert("Please upload a PDF file");
             return;
         }
+        // 1. Save the PDF as base64 for applications
         const reader = new FileReader();
         reader.onload = async (event) => {
             const base64 = event.target?.result;
@@ -35853,6 +36718,43 @@ const StepPersonal = ({ profile, updateProfile, apwId, setApwId, onApiFetch, fet
             });
         };
         reader.readAsDataURL(file);
+        // 2. If it's a resume, also parse it to extract education, skills, and experience
+        if (type === 'resume') {
+            setResumeParsing(true);
+            setParseStatus({ type: 'none', message: '' });
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const parserUrl = _config__WEBPACK_IMPORTED_MODULE_6__.CONFIG.API.RESUME_PARSER_API;
+                const response = await fetch(parserUrl, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response.ok) {
+                    throw new Error(`Parser returned HTTP ${response.status}`);
+                }
+                const parserJson = await response.json();
+                // Map parsed data into the current profile (skills, education, certifications)
+                const enrichedProfile = (0,_core_mapping_apiMapper__WEBPACK_IMPORTED_MODULE_4__.mapResumeParserToProfile)(parserJson, profile);
+                onResumeParse(enrichedProfile);
+                const skillCount = Array.isArray(parserJson.skills) ? parserJson.skills.length : 0;
+                const eduCount = Array.isArray(parserJson.education_history) ? parserJson.education_history.length : 0;
+                setParseStatus({
+                    type: 'success',
+                    message: `✅ Resume parsed! Found ${eduCount} education record(s) and ${skillCount} skill(s).`
+                });
+            }
+            catch (err) {
+                console.error('[Resume Parser] Failed:', err);
+                setParseStatus({
+                    type: 'error',
+                    message: `⚠️ Resume parsing failed: ${err.message}. You can still fill details manually.`
+                });
+            }
+            finally {
+                setResumeParsing(false);
+            }
+        }
     };
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "step" },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: "back-btn justify-end", onClick: onBack, style: { flex: 1, background: '#f5f5f5', color: '#666', border: '1px solid #ddd', borderRadius: '8px', padding: '10px', cursor: 'pointer' } }, "Back to Home"),
@@ -35872,13 +36774,19 @@ const StepPersonal = ({ profile, updateProfile, apwId, setApwId, onApiFetch, fet
                         fontWeight: '600',
                         transition: 'background 0.3s'
                     }, onMouseOver: (e) => e.currentTarget.style.background = '#45a049', onMouseOut: (e) => e.currentTarget.style.background = '#4CAF50' }, "\u26A1 Prefill (Testing)")),
-            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("p", { style: { color: '#666', fontSize: '13px', margin: '0 0 15px 0' } }, "Upload your latest Resume and Cover Letter (PDF only) to be used for automated applications."),
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("p", { style: { color: '#666', fontSize: '13px', margin: '0 0 15px 0' } }, "Upload your latest Resume (PDF) to auto-fill education & skills, and your Cover Letter for automated applications."),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-row", style: { marginBottom: '0' } },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-field", style: { marginBottom: '0' } },
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", { style: { fontSize: '12px', fontWeight: '600' } }, "Resume (PDF)"),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", { style: { fontSize: '12px', fontWeight: '600' } }, "Resume (PDF) \u2014 auto-parses skills & education"),
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "file-upload-wrapper" },
-                        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "file", accept: ".pdf,application/pdf", onChange: (e) => handleFileUpload(e, 'resume'), id: "resume-upload", style: { display: 'none' } }),
-                        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", { htmlFor: "resume-upload", className: "file-upload-label", style: { padding: '10px', fontSize: '13px' } }, profile.documents?.resume ? `✅ ${profile.documents.resume.fileName}` : "Upload Resume"))),
+                        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "file", accept: ".pdf,application/pdf", onChange: (e) => handleFileUpload(e, 'resume'), id: "resume-upload", style: { display: 'none' }, disabled: resumeParsing }),
+                        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", { htmlFor: "resume-upload", className: "file-upload-label", style: { padding: '10px', fontSize: '13px', opacity: resumeParsing ? 0.6 : 1 } }, resumeParsing ? '⏳ Parsing resume...' : profile.documents?.resume ? `✅ ${profile.documents.resume.fileName}` : '📄 Upload Resume')),
+                    parseStatus.type !== 'none' && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("p", { style: {
+                            marginTop: '6px', fontSize: '12px',
+                            color: parseStatus.type === 'success' ? '#2e7d32' : '#b71c1c',
+                            background: parseStatus.type === 'success' ? '#f1f8e9' : '#ffebee',
+                            padding: '6px 10px', borderRadius: '6px', lineHeight: '1.4'
+                        } }, parseStatus.message))),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-field", style: { marginBottom: '0' } },
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", { style: { fontSize: '12px', fontWeight: '600' } }, "Cover Letter (PDF)"),
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "file-upload-wrapper" },
@@ -35886,9 +36794,9 @@ const StepPersonal = ({ profile, updateProfile, apwId, setApwId, onApiFetch, fet
                         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", { htmlFor: "coverletter-upload", className: "file-upload-label", style: { padding: '10px', fontSize: '13px' } }, profile.documents?.coverLetter ? `✅ ${profile.documents.coverLetter.fileName}` : "Upload Cover Letter"))))),
         !hasData && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "onboarding-source-options" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "api-fetch-section" },
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h3", null, "Fetch from Portfolio ID"),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h3", null, "Fetch from Portfolio ID / Lead ID"),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "api-input-group" },
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "text", value: apwId, onChange: (e) => setApwId(e.target.value.toUpperCase()), placeholder: "e.g. AWL-1712", className: "apw-id-input" }),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "text", value: apwId, onChange: (e) => setApwId(e.target.value.toUpperCase()), placeholder: "e.g. AWL-1712 or Lead ID", className: "apw-id-input" }),
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { onClick: onApiFetch, disabled: fetching || !apwId, className: "api-fetch-btn" }, fetching ? "Fetching..." : "Fetch Data"))),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("p", { className: "or-divider" }, "\u2014 OR \u2014"),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("p", { className: "manual-info" }, "Fill out your profile manually below"))),

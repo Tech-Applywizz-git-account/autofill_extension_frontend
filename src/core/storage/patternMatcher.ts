@@ -57,6 +57,7 @@ export class PatternMatcher {
         "screening.projectHighlights", "screening.recentProject", "screening.projectChallenge",
         "screening.additionalInfo", "screening.coverLetterLike",
         "preferences.desiredSalary",
+        "screening.disqualification",
 
         // Fallback
         "unknown",
