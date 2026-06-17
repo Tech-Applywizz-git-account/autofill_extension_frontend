@@ -11,11 +11,7 @@
     ],
     "host_permissions": [
         "https://autofill-extension-backend.onrender.com/*",
-<<<<<<< HEAD
         "http://localhost:8001/*"
-=======
-        "http://localhost/*"
->>>>>>> nikhil_main_dev_branch
     ],
     "background": {
         "service_worker": "background.js"

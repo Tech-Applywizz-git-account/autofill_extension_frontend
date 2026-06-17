@@ -1682,9 +1682,6 @@ export class QuestionMapper {
             return [];
         }
 
-<<<<<<< HEAD
-        const CONCURRENCY_LIMIT = 6;
-=======
         const batchQuestions = questions.map((q, index) => ({
             id: index.toString(),
             question: q.questionText,
@@ -1702,7 +1699,6 @@ export class QuestionMapper {
         console.log(`      [UserProfile Details Sent to AI]:`, JSON.stringify(profile, null, 2));
 
         let batchResponse: any = null;
->>>>>>> nikhil_main_dev_branch
         const MAX_RETRIES = 3;
         const BASE_DELAY_MS = 1000;
 
