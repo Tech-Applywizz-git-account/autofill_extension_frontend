@@ -349,11 +349,13 @@ function getDropdownMenu(): Element | null {
         const menus = document.querySelectorAll(selector);
         for (const menu of Array.from(menus)) {
             // Check visibility
-            const rect = menu.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) {
-                // Double check computed style visibility/display
-                const style = window.getComputedStyle(menu);
-                if (style.display !== 'none' && style.visibility !== 'hidden') {
+            const style = window.getComputedStyle(menu);
+            if (style.display !== 'none' && style.visibility !== 'hidden') {
+                if (document.hidden) {
+                    return menu; // Bypass layout dimension check when minimized/hidden
+                }
+                const rect = menu.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
                     return menu;
                 }
             }

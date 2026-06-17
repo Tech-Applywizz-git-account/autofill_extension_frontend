@@ -1,5 +1,8 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import Onboarding from "./Onboarding";
 
-ReactDOM.render(<Onboarding />, document.getElementById("root"));
+const container = document.getElementById("root");
+const root = createRoot(container!);
+root.render(<Onboarding />);
+

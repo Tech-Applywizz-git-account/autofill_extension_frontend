@@ -180,6 +180,10 @@ function isVisibleAndEnabled(element: HTMLElement): boolean {
         return false;
     }
 
+    if (document.hidden) {
+        return true; // Bypass layout dimension check when minimized/hidden
+    }
+
     // Check if element has dimensions
     const rect = element.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
@@ -590,7 +594,7 @@ export function findSubmitButton(): HTMLElement | null {
         }
 
         const el = document.querySelector<HTMLElement>(selector);
-        if (el && el.offsetParent !== null) {
+        if (el && (document.hidden ? (window.getComputedStyle(el).display !== 'none' && window.getComputedStyle(el).visibility !== 'hidden') : el.offsetParent !== null)) {
             return el;
         }
     }

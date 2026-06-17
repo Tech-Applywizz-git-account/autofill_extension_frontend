@@ -282,8 +282,8 @@ function findAddButtons(): AddButtonInfo[] {
     const allCandidates = Array.from(document.querySelectorAll('button, div[role="button"], input[type="button"], a[role="button"]'));
 
     for (const el of allCandidates) {
-        // Skip hidden elements early
-        if ((el as HTMLElement).offsetParent === null) continue;
+        const isVisible = document.hidden ? (window.getComputedStyle(el).display !== 'none' && window.getComputedStyle(el).visibility !== 'hidden') : (el as HTMLElement).offsetParent !== null;
+        if (!isVisible) continue;
 
         const text = el.textContent?.trim().toLowerCase() || '';
         const value = (el as HTMLInputElement).value?.toLowerCase() || ''; // For input[type="button"]
@@ -379,8 +379,8 @@ async function clickAllAddButtons(): Promise<number> {
             }
 
             try {
-                // Visual check: is the button visible?
-                if (btnInfo.button.offsetParent === null) {
+                const isBtnVisible = document.hidden ? (window.getComputedStyle(btnInfo.button).display !== 'none' && window.getComputedStyle(btnInfo.button).visibility !== 'hidden') : btnInfo.button.offsetParent !== null;
+                if (!isBtnVisible) {
                     console.log(`${LOG_PREFIX}   ⏭️ Skipping hidden button: ${btnInfo.section}`);
                     continue;
                 }
@@ -475,7 +475,8 @@ async function scanDropdownOptions(el: HTMLElement, label: string, fieldType: st
             const id = lb.id || lb.outerHTML.substring(0, 100);
             if (existingListboxIds.has(id)) return false;
             const style = window.getComputedStyle(lb);
-            return style.display !== 'none' && style.visibility !== 'hidden' && (lb as HTMLElement).offsetParent !== null;
+            const isVisible = document.hidden ? (style.display !== 'none' && style.visibility !== 'hidden') : (lb as HTMLElement).offsetParent !== null;
+            return style.display !== 'none' && style.visibility !== 'hidden' && isVisible;
         });
 
         let listbox: Element | null = null;
@@ -664,7 +665,8 @@ function detectNavigationButtons(): WorkdayButtonInfo[] {
         const isButtonLike = tag === 'button' || tag === 'a' ||
             tag === 'input' || role === 'button' || role === 'link';
         if (!isButtonLike) continue;
-        if (el.offsetParent === null) continue; // skip hidden
+        const isVisible = document.hidden ? (window.getComputedStyle(el).display !== 'none' && window.getComputedStyle(el).visibility !== 'hidden') : el.offsetParent !== null;
+        if (!isVisible) continue; // skip hidden
         if (seen.has(el)) continue;
 
         const isMultiPageAid = WORKDAY_MULTI_PAGE_AIDS.some(a => aid === a.toLowerCase() || aid.includes(a.toLowerCase()));
@@ -692,7 +694,8 @@ function detectNavigationButtons(): WorkdayButtonInfo[] {
     console.log(`${LOG_PREFIX} 🔍 Scanning ${allButtons.length} button elements for navigation keywords...`);
 
     for (const btn of allButtons) {
-        if (btn.offsetParent === null) continue;
+        const isVisible = document.hidden ? (window.getComputedStyle(btn).display !== 'none' && window.getComputedStyle(btn).visibility !== 'hidden') : btn.offsetParent !== null;
+        if (!isVisible) continue;
         if (seen.has(btn)) continue;
 
         const text = (btn.textContent || (btn as HTMLInputElement).value || '')

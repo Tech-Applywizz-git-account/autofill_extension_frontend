@@ -154,7 +154,11 @@ const fetchAndParseResume = async (
     const s3BaseUrl = 'https://applywizz-prod.s3.us-east-2.amazonaws.com';
     const normalizedPath = resumePath.startsWith('/') ? resumePath : `/${resumePath}`;
     const resumeUrl = resumeUrlFromApi || `${s3BaseUrl}${normalizedPath}`;
-    const fileName = resumePath.substring(resumePath.lastIndexOf('/') + 1) || "resume.pdf";
+    let fileName = resumePath.substring(resumePath.lastIndexOf('/') + 1) || "resume.pdf";
+    const resumeIndex = fileName.indexOf('resume_');
+    if (resumeIndex !== -1) {
+        fileName = fileName.substring(resumeIndex);
+    }
 
     if (onStatusUpdate) onStatusUpdate("Downloading resume from storage...");
     console.log(`[Onboarding] Fetching resume from URL: ${resumeUrl}`);
@@ -202,23 +206,7 @@ const fetchAndParseResume = async (
 };
 
 const fetchOnboardingDetailsFromApi = async (leadId: string): Promise<any> => {
-    // Try local CRM first, then fallback to production Vercel
-    const localUrl = `${CONFIG.API.BACKEND_URL}/api/client-onboarding-details?lead_id=${encodeURIComponent(leadId)}`;
     const prodUrl = `${CONFIG.API.CLIENT_ONBOARDING_API}?lead_id=${encodeURIComponent(leadId)}`;
-    
-    try {
-        console.log(`[Onboarding] Trying to fetch client onboarding details from local CRM: ${localUrl}`);
-        const response = await fetch(localUrl);
-        if (response.ok) {
-            const data = await response.json();
-            if (data && data.success && data.data) {
-                console.log("[Onboarding] Successfully fetched onboarding details from local CRM.");
-                return data;
-            }
-        }
-    } catch (err) {
-        console.warn(`[Onboarding] Local CRM fetch failed, falling back to Vercel:`, err);
-    }
     
     console.log(`[Onboarding] Fetching client onboarding details from Vercel CRM: ${prodUrl}`);
     const response = await fetch(prodUrl);
@@ -247,6 +235,11 @@ const AuthPage: React.FC<{
         return trimmed.endsWith("@applywizz.com") || trimmed.endsWith("@applywizz.ai");
     };
 
+    const isAdminEmail = (val: string) => {
+        const trimmed = val.trim().toLowerCase();
+        return trimmed === "nikhil@applywizz.ai" || trimmed === "nikhil@applywizz.com";
+    };
+
     const handleSendOtp = async () => {
         setError("");
         setStatusMessage("");
@@ -254,6 +247,12 @@ const AuthPage: React.FC<{
 
         if (!validateEmail(trimmedEmail)) {
             setError("Access denied: Email must end with @applywizz.com or @applywizz.ai");
+            return;
+        }
+
+        if (isAdminEmail(trimmedEmail)) {
+            setOtpSent(true);
+            setStatusMessage("Admin account detected. Please enter your password.");
             return;
         }
 
@@ -291,9 +290,16 @@ const AuthPage: React.FC<{
         const trimmedEmail = email.trim().toLowerCase();
         const trimmedOtp = otp.trim();
 
-        if (!trimmedOtp || trimmedOtp.length !== 6) {
-            setError("Please enter a valid 6-digit verification code");
-            return;
+        if (isAdminEmail(trimmedEmail)) {
+            if (!trimmedOtp) {
+                setError("Please enter your password");
+                return;
+            }
+        } else {
+            if (!trimmedOtp || trimmedOtp.length !== 6) {
+                setError("Please enter a valid 6-digit verification code");
+                return;
+            }
         }
 
         setLoading(true);
@@ -310,7 +316,7 @@ const AuthPage: React.FC<{
                 }, (response) => {
                     if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
                     else if (response && response.success) resolve(response.data);
-                    else reject(new Error(response?.error || 'Invalid verification code'));
+                    else reject(new Error(response?.error || (isAdminEmail(trimmedEmail) ? 'Invalid password' : 'Invalid verification code')));
                 });
             });
 
@@ -326,7 +332,7 @@ const AuthPage: React.FC<{
             }
         } catch (err: any) {
             console.error("Verify OTP error:", err);
-            setError(err.message || "Verification failed. Please check your code.");
+            setError(err.message || (isAdminEmail(trimmedEmail) ? "Verification failed. Please check your password." : "Verification failed. Please check your code."));
         } finally {
             setLoading(false);
         }
@@ -360,15 +366,21 @@ const AuthPage: React.FC<{
 
                     {otpSent && (
                         <div className="form-field animation-slide-in">
-                            <label>Verification Code (OTP)</label>
+                            <label>{isAdminEmail(email) ? "Password" : "Verification Code (OTP)"}</label>
                             <input
-                                type="text"
+                                type={isAdminEmail(email) ? "password" : "text"}
                                 value={otp}
-                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").substring(0, 6))}
-                                placeholder="Enter 6-digit OTP"
+                                onChange={(e) => {
+                                    if (isAdminEmail(email)) {
+                                        setOtp(e.target.value);
+                                    } else {
+                                        setOtp(e.target.value.replace(/\D/g, "").substring(0, 6));
+                                    }
+                                }}
+                                placeholder={isAdminEmail(email) ? "Enter password" : "Enter 6-digit OTP"}
                                 disabled={loading}
                                 className="auth-input otp-input"
-                                maxLength={6}
+                                maxLength={isAdminEmail(email) ? undefined : 6}
                             />
                         </div>
                     )}
@@ -379,16 +391,16 @@ const AuthPage: React.FC<{
                             disabled={loading || !email.trim()}
                             className="auth-btn"
                         >
-                            {loading ? "Sending..." : "Send Verification Code"}
+                            {loading ? "Sending..." : (isAdminEmail(email) ? "Continue with Password" : "Send Verification Code")}
                         </button>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <button
                                 onClick={handleVerifyOtp}
-                                disabled={loading || otp.length !== 6}
+                                disabled={loading || (isAdminEmail(email) ? !otp.trim() : otp.length !== 6)}
                                 className="auth-btn success-btn"
                             >
-                                {loading ? "Verifying..." : "Verify & Login"}
+                                {loading ? "Verifying..." : (isAdminEmail(email) ? "Log In" : "Verify & Login")}
                             </button>
                             <button
                                 onClick={() => {
@@ -564,36 +576,17 @@ const Onboarding: React.FC = () => {
                 return;
             }
 
-            // Fallback: Fetch from Local Lead Details API
-            let localData = {};
-            let isLocalSuccess = false;
-            try {
-                const backendUrl = CONFIG.API.BACKEND_URL;
-                const localResponse = await fetch(`${backendUrl}/api/lead-details/${normalizedId}`);
-                if (!localResponse.ok) {
-                    console.warn(`Local API Error: ${localResponse.status}`);
-                } else {
-                    localData = await localResponse.json();
-                    isLocalSuccess = true;
-                }
-            } catch (e) {
-                console.warn("Local API unreachable, skipping:", e);
-            }
-
             // Fallback: Fetch from Vercel Client Details API
             const vercelUrl = CONFIG.API.VERCEL_CRM;
             const vercelResponse = await fetch(`${vercelUrl}?applywizz_id=${normalizedId}`);
             if (!vercelResponse.ok) {
                 console.warn(`Vercel API Error: ${vercelResponse.status}`);
+                throw new Error(`Failed to fetch data from Vercel CRM: ${vercelResponse.status}`);
             }
-            const vercelData = vercelResponse.ok ? await vercelResponse.json() : {};
+            const vercelData = await vercelResponse.json();
 
-            if (!isLocalSuccess && !vercelResponse.ok) {
-                throw new Error("Failed to fetch data from all sources.");
-            }
-
-            // Map multi-source data to profile
-            const mappedProfile = mapMultiSourceToProfile(localData, vercelData, profile);
+            // Map CRM data to profile
+            const mappedProfile = mapMultiSourceToProfile({}, vercelData, profile);
 
             // Set the apwId in metadata
             mappedProfile.metadata = {

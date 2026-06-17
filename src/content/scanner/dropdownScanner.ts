@@ -19,15 +19,24 @@ function sleep(ms: number): Promise<void> {
  */
 function isVisible(element: Element): boolean {
     const htmlElement = element as HTMLElement;
-    const rect = htmlElement.getBoundingClientRect();
     const style = window.getComputedStyle(htmlElement);
 
+    if (
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        style.opacity === '0'
+    ) {
+        return false;
+    }
+
+    if (document.hidden) {
+        return true; // Bypass layout dimension check when minimized/hidden
+    }
+
+    const rect = htmlElement.getBoundingClientRect();
     return (
         rect.width > 0 &&
-        rect.height > 0 &&
-        style.display !== 'none' &&
-        style.visibility !== 'hidden' &&
-        style.opacity !== '0'
+        rect.height > 0
     );
 }
 
@@ -249,6 +258,24 @@ export function extractNativeOptions(select: HTMLSelectElement): string[] {
 }
 
 /**
+ * Helper to find the scrollable container inside the menu
+ */
+function findScrollableContainer(menu: HTMLElement): HTMLElement {
+    if (menu.scrollHeight > menu.clientHeight) {
+        return menu;
+    }
+    // Search children for the scrollable container
+    const children = menu.querySelectorAll('*');
+    for (const child of Array.from(children)) {
+        const htmlChild = child as HTMLElement;
+        if (htmlChild.scrollHeight > htmlChild.clientHeight) {
+            return htmlChild;
+        }
+    }
+    return menu;
+}
+
+/**
  * Extract options from custom dropdown (React-Select, etc.)
  * Uses ProductionDropdown's PROVEN opening logic
  */
@@ -314,24 +341,140 @@ export async function extractCustomOptions(element: HTMLElement): Promise<string
             '.dropdown-item'
         ];
 
-        // Find all potential option elements within the menu
-        const allElements = menu.querySelectorAll(optionSelectors.join(', '));
-
-        for (const optionEl of Array.from(allElements)) {
-            // Ensure element is visible
-            if (!isVisible(optionEl)) continue;
-
-            const text = optionEl.textContent?.trim();
-            // Filter out short garbage or empty strings
-            if (text && text.length > 1 && !options.includes(text)) {
-                // Avoid adding the whole menu text if it matches (sometimes container matches selector)
-                // if (text === menu.textContent?.trim()) continue;
-
-                options.push(text);
+        // Wait up to 500ms for options to appear in the menu
+        console.log(`${LOG_PREFIX} ⏳ Waiting up to 0.5s for options to render...`);
+        let optionsFound = false;
+        const startTime = Date.now();
+        while (Date.now() - startTime < 500) {
+            const allElements = menu.querySelectorAll(optionSelectors.join(', '));
+            const visibleOptions = Array.from(allElements).filter(el => isVisible(el));
+            if (visibleOptions.length > 0) {
+                optionsFound = true;
+                break;
             }
+            await sleep(50);
         }
 
-        console.log(`${LOG_PREFIX} ✅ Extracted ${options.length} custom dropdown options from menu:`, menu);
+        if (!optionsFound) {
+            console.warn(`${LOG_PREFIX} ⚠️ No options rendered in the dropdown menu after waiting 0.5s`);
+            await closeDropdown(input);
+            return options;
+        }
+
+        // Find the scrollable container to pull virtualized dropdown options
+        const scrollContainer = findScrollableContainer(menu as HTMLElement);
+        console.log(`${LOG_PREFIX} 📜 Scrollable container identified:`, scrollContainer);
+
+        let lastScrollTop = -1;
+        let sameScrollCount = 0;
+        const maxScrollAttempts = 1000; // Large safety ceiling to support deep dropdown lists (A-Z)
+        let attempts = 0;
+        let loopStartTime = Date.now();
+        const maxTimeMs = 2000; // 3 seconds budget limit per inactivity period
+
+        while (attempts < maxScrollAttempts) {
+            // Check time budget
+            if (Date.now() - loopStartTime >= maxTimeMs) {
+                console.log(`${LOG_PREFIX} ⏱️ Time budget of ${maxTimeMs}ms exceeded without new options/lazy-load. Stopping scroll.`);
+                break;
+            }
+
+            // 1. Collect options currently visible in the DOM
+            const allElements = menu.querySelectorAll(optionSelectors.join(', '));
+            let newOptionsFound = false;
+
+            for (const optionEl of Array.from(allElements)) {
+                if (!isVisible(optionEl)) continue;
+                const text = optionEl.textContent?.trim();
+                if (text && text.length > 1 && !options.includes(text)) {
+                    options.push(text);
+                    newOptionsFound = true;
+                }
+            }
+
+            if (newOptionsFound) {
+                console.log(`${LOG_PREFIX} 📜 Extracted options batch. Total so far: ${options.length}`);
+                // Refill the time budget because we successfully found new options
+                loopStartTime = Date.now();
+            }
+
+            // 2. Check scroll height metrics
+            const currentScrollTop = scrollContainer.scrollTop;
+            const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+
+            // If we are at the bottom of the scroll container or it isn't scrolling any further
+            if (currentScrollTop >= maxScroll - 5 || currentScrollTop === lastScrollTop) {
+                console.log(`${LOG_PREFIX} ⏳ Reached apparent bottom, waiting for potential lazy load...`);
+                const initialOptionsCount = options.length;
+                const initialScrollHeight = scrollContainer.scrollHeight;
+                let lazyLoaded = false;
+
+                const lazyWaitStart = Date.now();
+                // Wait up to 2000ms (2 seconds) for lazy loaded options to render
+                while (Date.now() - lazyWaitStart < 2000) {
+                    if (Date.now() - loopStartTime >= maxTimeMs) break;
+
+                    // Dispatch scroll event to trigger lazy load listener
+                    scrollContainer.dispatchEvent(new Event('scroll', { bubbles: true }));
+                    if (scrollContainer !== menu) {
+                        menu.dispatchEvent(new Event('scroll', { bubbles: true }));
+                    }
+
+                    await sleep(100);
+
+                    // Scan again
+                    const checkElements = menu.querySelectorAll(optionSelectors.join(', '));
+                    for (const optionEl of Array.from(checkElements)) {
+                        if (!isVisible(optionEl)) continue;
+                        const text = optionEl.textContent?.trim();
+                        if (text && text.length > 1 && !options.includes(text)) {
+                            options.push(text);
+                        }
+                    }
+
+                    if (scrollContainer.scrollHeight > initialScrollHeight || options.length > initialOptionsCount) {
+                        lazyLoaded = true;
+                        console.log(`${LOG_PREFIX} 🔄 Lazy load detected! ScrollHeight increased or new options found.`);
+                        // Refill the time budget because we made lazy load progress
+                        loopStartTime = Date.now();
+                        break;
+                    }
+                }
+
+                if (!lazyLoaded) {
+                    sameScrollCount++;
+                    if (sameScrollCount >= 2) {
+                        console.log(`${LOG_PREFIX} 🏁 Reached absolute bottom of dropdown. Stopping scroll.`);
+                        break;
+                    }
+                } else {
+                    sameScrollCount = 0;
+                }
+            } else {
+                sameScrollCount = 0;
+            }
+
+            lastScrollTop = currentScrollTop;
+
+            // 3. Scroll down page-by-page
+            const scrollStep = Math.max(scrollContainer.clientHeight - 20, 150);
+            scrollContainer.scrollTop += scrollStep;
+            if (scrollContainer !== menu) {
+                (menu as HTMLElement).scrollTop += scrollStep;
+            }
+
+            // Dispatch scroll event for virtualized list frameworks (React-Virtual/react-window)
+            scrollContainer.dispatchEvent(new Event('scroll', { bubbles: true }));
+            if (scrollContainer !== menu) {
+                menu.dispatchEvent(new Event('scroll', { bubbles: true }));
+            }
+
+            // 4. Wait for new elements to render
+            await sleep(100);
+            attempts++;
+        }
+
+        console.log(`${LOG_PREFIX} ✅ Extracted ${options.length} custom dropdown options from menu.`);
 
         // Close the dropdown
         await closeDropdown(input);

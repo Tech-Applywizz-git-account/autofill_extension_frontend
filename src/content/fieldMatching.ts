@@ -231,20 +231,27 @@ function getLabelFor(el: HTMLElement): HTMLLabelElement | null {
 }
 
 function isVisible(el: HTMLElement): boolean {
-    const r = el.getBoundingClientRect();
     const style = window.getComputedStyle(el);
 
-    // Ashby and many other platforms hide native inputs with opacity: 0
-    // while their custom wrappers are visible. We must allow these.
+    if (style.visibility === "hidden" || style.display === "none") {
+        return false;
+    }
+
     const isHiddenInput = el instanceof HTMLInputElement &&
         (el.type === 'radio' || el.type === 'checkbox' || el.type === 'file');
 
+    if (style.opacity === '0' && !isHiddenInput) {
+        return false;
+    }
+
+    if (document.hidden) {
+        return true; // Bypass layout dimension check when minimized/hidden
+    }
+
+    const r = el.getBoundingClientRect();
     return (
         r.width > 0 &&
-        r.height > 0 &&
-        style.visibility !== "hidden" &&
-        style.display !== "none" &&
-        (style.opacity !== '0' || isHiddenInput)
+        r.height > 0
     );
 }
 

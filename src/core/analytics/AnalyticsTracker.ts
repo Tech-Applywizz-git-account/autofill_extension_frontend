@@ -17,6 +17,11 @@ export interface AnalyticsEvent {
     missed_questions: string[];
     all_questions: string[];
     total_process_time_ms: number;
+    company_name?: string;
+    job_title?: string;
+    total_tokens_used?: number;
+    total_input_tokens?: number;
+    total_output_tokens?: number;
 }
 
 export class AnalyticsTracker {
@@ -39,6 +44,8 @@ export class AnalyticsTracker {
     private successCount: number = 0;
     private failCount: number = 0;
     private missedQuestions: string[] = [];
+    private inputTokens: number = 0;
+    private outputTokens: number = 0;
 
     private constructor() {
         this.reset();
@@ -68,6 +75,8 @@ export class AnalyticsTracker {
         this.successCount = 0;
         this.failCount = 0;
         this.missedQuestions = [];
+        this.inputTokens = 0;
+        this.outputTokens = 0;
     }
 
     // --- Timers ---
@@ -114,6 +123,12 @@ export class AnalyticsTracker {
         this.aiCallsIndex++;
     }
 
+    public addTokens(input: number, output: number) {
+        this.inputTokens += input;
+        this.outputTokens += output;
+        console.log(`[AnalyticsTracker] 🎫 Added tokens - input: ${input}, output: ${output} (total accumulated: ${this.inputTokens + this.outputTokens})`);
+    }
+
     // --- Results ---
 
     public trackFillResult(question: string, success: boolean) {
@@ -150,6 +165,71 @@ export class AnalyticsTracker {
             const fillDuration = this.fillEndTime - this.fillStartTime;
             const totalDuration = Date.now() - this.startTime;
 
+            const getCompanyNameFromUrl = (urlStr: string): string => {
+                try {
+                    const url = new URL(urlStr);
+                    const hostname = url.hostname;
+                    
+                    if (hostname.includes('greenhouse.io')) {
+                        const pathParts = url.pathname.split('/').filter(Boolean);
+                        if (pathParts.length > 0) return pathParts[0];
+                    }
+                    if (hostname.includes('lever.co')) {
+                        const pathParts = url.pathname.split('/').filter(Boolean);
+                        if (pathParts.length > 0) return pathParts[0];
+                    }
+                    if (hostname.includes('myworkdayjobs.com')) {
+                        return hostname.split('.')[0];
+                    }
+                    const parts = hostname.split('.');
+                    if (parts.length > 2) {
+                        return parts[parts.length - 2];
+                    }
+                    return parts[0];
+                } catch {
+                    return '';
+                }
+            };
+
+            const parseJobDetails = (): { company: string; title: string } => {
+                let company = '';
+                let title = '';
+
+                try {
+                    const titleText = document.title;
+                    if (titleText.includes(' at ')) {
+                        const parts = titleText.split(' at ');
+                        title = parts[0].trim();
+                        company = parts[1].trim();
+                    } else if (titleText.includes(' - ')) {
+                        const parts = titleText.split(' - ');
+                        company = parts[parts.length - 1].trim();
+                        title = parts.slice(0, -1).join(' - ').trim();
+                    } else {
+                        title = titleText;
+                    }
+
+                    if (title.includes(' | ')) {
+                        title = title.split(' | ')[0].trim();
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse job details from title:', e);
+                }
+
+                const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+                
+                if (!company) {
+                    company = getCompanyNameFromUrl(window.location.href);
+                }
+                if (company) {
+                    company = capitalize(company);
+                }
+
+                return { company, title };
+            };
+
+            const jobDetails = parseJobDetails();
+
             const payload: AnalyticsEvent = {
                 user_email: email,
                 user_name: name,
@@ -166,7 +246,12 @@ export class AnalyticsTracker {
                 filled_success_count: this.successCount,
                 filled_failed_count: this.failCount,
                 missed_questions: this.missedQuestions,
-                total_process_time_ms: totalDuration > 0 ? totalDuration : 0
+                total_process_time_ms: totalDuration > 0 ? totalDuration : 0,
+                company_name: jobDetails.company,
+                job_title: jobDetails.title,
+                total_tokens_used: this.inputTokens + this.outputTokens,
+                total_input_tokens: this.inputTokens,
+                total_output_tokens: this.outputTokens
             };
 
             console.log('📊 Submitting Analytics:', payload);

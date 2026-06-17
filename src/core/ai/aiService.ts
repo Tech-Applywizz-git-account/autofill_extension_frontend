@@ -10,6 +10,7 @@ interface AIQuestionRequest {
     options?: string[];
     fieldType: string;
     userProfile: CanonicalProfile;
+    required?: boolean;
 }
 
 interface AIQuestionResponse {
@@ -19,6 +20,35 @@ interface AIQuestionResponse {
     intent?: string;  // Canonical intent path (e.g., "social.linkedin")
     isNewIntent?: boolean;  // True if AI suggested a new intent
     suggestedIntentName?: string;  // Suggested name if creating new intent
+    input_tokens?: number;
+    output_tokens?: number;
+}
+
+export interface AIBatchQuestionItem {
+    id: string;
+    question: string;
+    options?: string[];
+    fieldType: string;
+    required?: boolean;
+}
+
+export interface AIBatchRequest {
+    questions: AIBatchQuestionItem[];
+    userProfile: CanonicalProfile;
+}
+
+export interface AIBatchResponseItem {
+    id: string;
+    answer: string;
+    confidence: number;
+    reasoning?: string;
+    intent?: string;
+}
+
+export interface AIBatchResponse {
+    results: AIBatchResponseItem[];
+    input_tokens?: number;
+    output_tokens?: number;
 }
 
 /**
@@ -46,13 +76,50 @@ export async function askAI(request: AIQuestionRequest): Promise<AIQuestionRespo
             throw new Error(response?.error || "AI request failed");
         }
 
-        return response.data;
+        const data = response.data;
+        if (data && (data.input_tokens || data.output_tokens)) {
+            AnalyticsTracker.getInstance().addTokens(data.input_tokens || 0, data.output_tokens || 0);
+        }
+
+        return data;
     } catch (error) {
         console.error("[AI Service] Error:", error);
         return {
             answer: "",
             confidence: 0,
             reasoning: `AI Error: ${error instanceof Error ? error.message : String(error)}`
+        };
+    }
+}
+
+export async function askAIBatch(request: AIBatchRequest): Promise<AIBatchResponse> {
+    // Increment AI calls in tracker (one batch counts as one AI transaction or length of batch, let's just track it)
+    AnalyticsTracker.getInstance().incrementAICall();
+    try {
+        const response: any = await new Promise((resolve) => {
+            chrome.runtime.sendMessage(
+                {
+                    action: "askAIBatch",
+                    payload: request
+                },
+                (response) => resolve(response)
+            );
+        });
+
+        if (!response || !response.success) {
+            throw new Error(response?.error || "AI batch request failed");
+        }
+
+        const data = response.data;
+        if (data && (data.input_tokens || data.output_tokens)) {
+            AnalyticsTracker.getInstance().addTokens(data.input_tokens || 0, data.output_tokens || 0);
+        }
+
+        return data;
+    } catch (error) {
+        console.error("[AI Service] Batch Error:", error);
+        return {
+            results: []
         };
     }
 }
