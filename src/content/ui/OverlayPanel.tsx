@@ -1000,6 +1000,7 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
     const [viewMode, setViewMode] = useState<"fields" | "resume">("fields");
     const [resumeText, setResumeText] = useState<string>("");
     const [fields, setFields] = useState<DetectedField[]>(initialFields);
+    const [mappingPriority, setMappingPriority] = useState<'AI_FIRST' | 'INTERNAL_FIRST'>('AI_FIRST');
 
     // Sync internal fields state with props (Required when orchestrator rescans)
     useEffect(() => {
@@ -1007,6 +1008,17 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
             setFields(initialFields);
         }
     }, [initialFields]);
+
+    // Load mapping strategy priority from chrome.storage.local
+    useEffect(() => {
+        chrome.storage.local.get('mappingPriority', (result) => {
+            if (result.mappingPriority) {
+                setMappingPriority(result.mappingPriority as 'AI_FIRST' | 'INTERNAL_FIRST');
+            } else {
+                setMappingPriority(CONFIG.STRATEGY.MAPPING_PRIORITY || 'AI_FIRST');
+            }
+        });
+    }, []);
 
     interface CompletionResult {
         successes: number;
@@ -1045,7 +1057,7 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
     const feedbackTimerRef = useRef<any>(null);
 
     // Handle Feedback Submission (Manual or Auto)
-    const submitFeedback = async (isAuto = false) => {
+    const submitFeedback = async (isAuto = false, overrideSuccess?: number, overrideFail?: number) => {
         if (feedbackTimerRef.current) clearInterval(feedbackTimerRef.current);
 
         // Record the message before hiding the intimation but don't hide the overall visibility yet
@@ -1055,7 +1067,9 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
         setShowFeedbackIntimation(false); // Hide the popup immediately
 
         const tracker = AnalyticsTracker.getInstance();
-        tracker.setManualCounts(manualSuccess, manualFail);
+        const finalSuccess = overrideSuccess !== undefined ? overrideSuccess : manualSuccess;
+        const finalFail = overrideFail !== undefined ? overrideFail : manualFail;
+        tracker.setManualCounts(finalSuccess, finalFail);
 
         console.log(`[Ext] Submitting ${isAuto ? 'AUTO' : 'MANUAL'} feedback and syncing patterns...`);
 
@@ -1246,9 +1260,7 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                 }));
 
                 // Track AI call in tracker (only if not cached)
-                if (!cached) {
-                    tracker.incrementAICall();
-                }
+                // Removed redundant call since askAIBatch already increments the network call tracker
             }
         };
 
@@ -1678,38 +1690,43 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                 // Allow UI to render timestamp before showing feedback prompt
                 setTimeout(async () => {
                     const currentFields = fieldsRef.current;
-                    if (result.successes > 0 || result.failures > 0) {
-                        // Pre-populate manual inputs with extension's analysis
-                        setManualSuccess(result.successes);
-                        setManualFail(result.failures);
 
-                        // Show feedback UI and start 40s timer
-                        setIsFeedbackVisible(true);
-                        setShowFeedbackIntimation(true); // Show the popup
-                        setFeedbackTimer(600);
+                    // Pre-populate manual inputs with extension's analysis
+                    setManualSuccess(result.successes);
+                    setManualFail(result.failures);
 
-                        // Find questions that failed or were required but not filled
-                        const missed = currentFields.filter(f => f.failed || (f.isRequired && !f.filled && !f.filledValue))
-                            .map(f => f.questionText);
+                    // Find questions that failed or were required but not filled
+                    const missed = currentFields.filter(f => f.failed || (f.isRequired && !f.filled && !f.filledValue))
+                        .map(f => f.questionText);
 
-                        console.log(`[Ext] Completion calculated: ${result.successes} succ, ${result.failures} fail. Missed: ${missed.length}`);
+                    console.log(`[Ext] Completion calculated: ${result.successes} succ, ${result.failures} fail. Missed: ${missed.length}`);
 
-                        // We still set this if we want to show the 'missed' list in the sidebar, 
-                        // but we won't show the POPUP anymore.
-                        setCompletionResult({
-                            ...result,
-                            missedQuestions: Array.from(new Set(missed))
-                        });
+                    setCompletionResult({
+                        ...result,
+                        missedQuestions: Array.from(new Set(missed))
+                    });
 
-                        // Automatically switch to missed filter in the side panel if there are failures
-                        if (result.failures > 0) {
-                            setSelectedSection("missed");
-                        }
+                    // Automatically switch to missed filter in the side panel if there are failures
+                    if (result.failures > 0) {
+                        setSelectedSection("missed");
                     }
+
+                    // Show completion notification & feedback prompt
+                    console.log("[Ext] 🤖 Showing completion notification & feedback prompt...");
+                    setFeedbackTimer(60); // 60s auto-submit timer
+                    setIsFeedbackVisible(true);
+                    setShowFeedbackIntimation(true);
                 }, 100);
             } catch (e) {
                 console.error('[Ext] Autofill execution error:', e);
                 setIsFilling(false);
+                // On error, still upload whatever scanned/mapped data we have to database
+                setTimeout(async () => {
+                    console.log("[Ext] 🤖 Saving scanned & mapped data to the database after autofill runner error...");
+                    setIsFeedbackVisible(true);
+                    const attempted = map?.data?.filter((a: any) => a.answer)?.length || 0;
+                    await submitFeedback(true, 0, attempted);
+                }, 100);
             }
 
         } catch (e) {
@@ -1750,10 +1767,10 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
             const mapToSeleniumType = (fieldType: string): string => {
                 if (fieldType.includes('dropdown_custom')) return 'dropdown_custom';
                 if (fieldType.includes('select') || fieldType.includes('dropdown')) return 'dropdown_native';
-                if (fieldType === 'radio') return 'radio';
+                if (fieldType === 'radio' || fieldType === 'radio_group') return 'radio';
                 if (fieldType === 'checkbox') return 'checkbox';
                 if (fieldType === 'textarea') return 'textarea';
-                if (fieldType === 'file') return 'input_file';
+                if (fieldType === 'file' || fieldType === 'file_upload') return 'input_file';
                 return 'input_text'; // Default for text, email, tel, number, etc.
             };
 
@@ -1771,7 +1788,7 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                         };
 
                         // Add fileName for file uploads
-                        if (a.fieldType === 'file' && profile) {
+                        if ((a.fieldType === 'file' || a.fieldType === 'file_upload') && profile) {
                             if (a.selector.includes('resume') && profile.documents?.resume?.fileName) {
                                 action.fileName = profile.documents.resume.fileName;
                             } else if (a.selector.includes('cover') && profile.documents?.coverLetter?.fileName) {
@@ -2611,6 +2628,21 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                                     <div className="settings-item-title">👤 Edit Profile</div>
                                     <div className="settings-item-desc">Modify your personal info, experience, and skills pre-filled with your current data.</div>
                                     <div className="settings-item-btn">Configure Profile →</div>
+                                </div>
+
+                                <div className="settings-item" onClick={async () => {
+                                    const nextPriority = mappingPriority === 'AI_FIRST' ? 'INTERNAL_FIRST' : 'AI_FIRST';
+                                    await chrome.storage.local.set({ mappingPriority: nextPriority });
+                                    setMappingPriority(nextPriority);
+                                    setNotification({
+                                        message: `Priority switched to ${nextPriority === 'AI_FIRST' ? 'AI First' : 'Internal Logic First'}!`,
+                                        type: 'success'
+                                    });
+                                    setTimeout(() => setNotification(null), 3000);
+                                }}>
+                                    <div className="settings-item-title">🧭 Strategy Priority: {mappingPriority === 'AI_FIRST' ? '🤖 AI First' : '⚡ Internal First'}</div>
+                                    <div className="settings-item-desc">Toggle between running AI predictions first (fallback to internal patterns) or running internal patterns/rules first (fallback to AI).</div>
+                                    <div className="settings-item-btn">Switch to {mappingPriority === 'AI_FIRST' ? 'Internal First' : 'AI First'} ⇄</div>
                                 </div>
 
                                 <div className="settings-item" onClick={() => {

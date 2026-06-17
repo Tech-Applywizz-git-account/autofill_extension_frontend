@@ -43,13 +43,17 @@ const SCAN_IDLE_BUDGET_MS = 30;
 function isElementVisible(el: HTMLElement): boolean {
     if (!el || !(el instanceof Element)) return false;
 
-    const rect = el.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) return false;
-
     const style = window.getComputedStyle(el);
     if (style.visibility === 'hidden' || style.display === 'none' || style.opacity === '0') {
         return false;
     }
+
+    if (document.hidden) {
+        return true; // Bypass layout dimension check when minimized/hidden
+    }
+
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return false;
 
     return true;
 }
@@ -413,7 +417,7 @@ export class DynamicScanner {
         for (const block of results) {
             if (block.dropdownNode && (block.inputType === FieldType.SELECT_NATIVE || block.inputType === FieldType.DROPDOWN_CUSTOM)) {
                 try {
-                    block.options = await getDropdownOptions(block.dropdownNode, { timeout: 3000, retries: 2 });
+                    block.options = await getDropdownOptions(block.dropdownNode, { timeout: 2000, retries: 2 });
 
                     DebugLogger.debug('BLOCK_OPTIONS_COLLECTED', {
                         q_hash: block.q_hash,

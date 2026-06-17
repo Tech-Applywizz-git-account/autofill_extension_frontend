@@ -106,13 +106,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    if (message.action === "askAIBatch") {
+        handleAIBatchRequest(message.payload).then(sendResponse);
+        return true;
+    }
+
     if (message.action === "scanApplication") {
         handleScanApplication(message.url).then(sendResponse);
         return true;
     }
 
     if (message.action === "mapAnswers") {
-        handleMapAnswers(message.questions).then(sendResponse);
+        handleMapAnswers(message.questions, sender.tab?.id).then(sendResponse);
         return true;
     }
 
@@ -322,6 +327,35 @@ async function handleAIRequest(payload: any) {
 }
 
 /**
+ * Handle AI Batch request
+ */
+async function handleAIBatchRequest(payload: any) {
+    try {
+        console.log(`[Background] 📤 Sending batch of ${payload.questions.length} questions to AI service`);
+        const aiUrl = CONFIG.API.AI_SERVICE;
+        const response = await fetch(`${aiUrl}/predict-batch`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': CONFIG.API.AI_API_KEY
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`AI batch prediction failed (${response.status}): ${errorText}`);
+        }
+
+        const data = await response.json();
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("[Background] AI Batch Request Error:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Cache for scan results to prevent repeated scans
  */
 const scanCache = new Map<string, { data: any; timestamp: number }>();
@@ -373,16 +407,21 @@ async function handleScanApplication(url: string) {
 /**
  * Handle answer mapping by delegating to content script
  */
-async function handleMapAnswers(questions: any[]) {
+async function handleMapAnswers(questions: any[], tabId?: number) {
     try {
         console.log('[Background] Processing', questions.length, 'questions through mapper');
 
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tabs[0]?.id) {
-            throw new Error('No active tab found');
+        let targetTabId = tabId;
+        if (!targetTabId) {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            targetTabId = tabs[0]?.id;
         }
 
-        const response = await chrome.tabs.sendMessage(tabs[0].id, {
+        if (!targetTabId) {
+            throw new Error('No target tab found');
+        }
+
+        const response = await chrome.tabs.sendMessage(targetTabId, {
             action: 'processQuestions',
             questions
         }, { frameId: 0 });

@@ -3,7 +3,7 @@ import { CanonicalProfile, EMPTY_PROFILE } from "../../types/canonicalProfile";
 import { Gender, Race, YesNoDecline, SexualOrientation } from "../../types/canonicalEnums";
 import { saveProfile, restoreProfile, restoreMasterData, loadProfile } from "../../core/storage/profileStorage";
 import { patternStorage } from "../../core/storage/patternStorage";
-import { mapMultiSourceToProfile } from "../../core/mapping/apiMapper";
+import { mapMultiSourceToProfile, mapClientOnboardingToProfile, mapResumeParserToProfile } from "../../core/mapping/apiMapper";
 import LandingPage from "./LandingPage";
 import { CONFIG } from "../../config";
 import "./Onboarding.css";
@@ -130,18 +130,369 @@ const DEFAULT_PROFILE_DATA: Partial<CanonicalProfile> = {
     }
 };
 
+const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+                resolve(reader.result);
+            } else {
+                reject(new Error("FileReader result is not a string"));
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
+
+const fetchAndParseResume = async (
+    resumePath: string, 
+    currentProfile: CanonicalProfile, 
+    resumeUrlFromApi?: string,
+    onStatusUpdate?: (status: string) => void
+): Promise<CanonicalProfile> => {
+    const s3BaseUrl = 'https://applywizz-prod.s3.us-east-2.amazonaws.com';
+    const normalizedPath = resumePath.startsWith('/') ? resumePath : `/${resumePath}`;
+    const resumeUrl = resumeUrlFromApi || `${s3BaseUrl}${normalizedPath}`;
+    let fileName = resumePath.substring(resumePath.lastIndexOf('/') + 1) || "resume.pdf";
+    const resumeIndex = fileName.indexOf('resume_');
+    if (resumeIndex !== -1) {
+        fileName = fileName.substring(resumeIndex);
+    }
+
+    if (onStatusUpdate) onStatusUpdate("Downloading resume from storage...");
+    console.log(`[Onboarding] Fetching resume from URL: ${resumeUrl}`);
+    const res = await fetch(resumeUrl);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch resume from S3: ${res.statusText}`);
+    }
+    const blob = await res.blob();
+    
+    // Convert to base64 to store in documents.resume (as if uploaded manually)
+    const base64 = await blobToBase64(blob);
+    let updatedProfile: CanonicalProfile = {
+        ...currentProfile,
+        documents: {
+            resume: {
+                base64,
+                fileName
+            },
+            coverLetter: currentProfile.documents?.coverLetter
+        }
+    };
+
+    // Post to resume parser API
+    if (onStatusUpdate) onStatusUpdate("Extracting skills and education from resume...");
+    console.log(`[Onboarding] Uploading resume to parser API: ${CONFIG.API.RESUME_PARSER_API}`);
+    const formData = new FormData();
+    formData.append('file', blob, fileName);
+    
+    const parserRes = await fetch(CONFIG.API.RESUME_PARSER_API, {
+        method: 'POST',
+        body: formData
+    });
+
+    if (!parserRes.ok) {
+        throw new Error(`Resume parser API failed with status ${parserRes.status}`);
+    }
+
+    const parserJson = await parserRes.json();
+    console.log(`[Onboarding] Resume parser response:`, parserJson);
+    
+    // Map parsed data into profile
+    if (onStatusUpdate) onStatusUpdate("Mapping and saving parsed details...");
+    updatedProfile = mapResumeParserToProfile(parserJson, updatedProfile);
+    return updatedProfile;
+};
+
+const fetchOnboardingDetailsFromApi = async (leadId: string): Promise<any> => {
+    const prodUrl = `${CONFIG.API.CLIENT_ONBOARDING_API}?lead_id=${encodeURIComponent(leadId)}`;
+    
+    console.log(`[Onboarding] Fetching client onboarding details from Vercel CRM: ${prodUrl}`);
+    const response = await fetch(prodUrl);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch onboarding details from Vercel: ${response.status}`);
+    }
+    const data = await response.json();
+    if (!data || !data.success) {
+        throw new Error(data?.error || "Invalid response format from Vercel CRM");
+    }
+    return data;
+};
+
+const AuthPage: React.FC<{
+    onSuccess: (email: string, token: string) => void;
+}> = ({ onSuccess }) => {
+    const [email, setEmail] = useState("");
+    const [otp, setOtp] = useState("");
+    const [otpSent, setOtpSent] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [statusMessage, setStatusMessage] = useState("");
+
+    const validateEmail = (val: string) => {
+        const trimmed = val.trim().toLowerCase();
+        return trimmed.endsWith("@applywizz.com") || trimmed.endsWith("@applywizz.ai");
+    };
+
+    const isAdminEmail = (val: string) => {
+        const trimmed = val.trim().toLowerCase();
+        return trimmed === "nikhil@applywizz.ai" || trimmed === "nikhil@applywizz.com";
+    };
+
+    const handleSendOtp = async () => {
+        setError("");
+        setStatusMessage("");
+        const trimmedEmail = email.trim().toLowerCase();
+
+        if (!validateEmail(trimmedEmail)) {
+            setError("Access denied: Email must end with @applywizz.com or @applywizz.ai");
+            return;
+        }
+
+        if (isAdminEmail(trimmedEmail)) {
+            setOtpSent(true);
+            setStatusMessage("Admin account detected. Please enter your password.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await new Promise<any>((resolve, reject) => {
+                chrome.runtime.sendMessage({
+                    action: 'proxyFetch',
+                    url: `${CONFIG.API.AI_SERVICE}/api/auth/send-otp`,
+                    options: {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: trimmedEmail })
+                    }
+                }, (response) => {
+                    if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+                    else if (response && response.success) resolve(response.data);
+                    else reject(new Error(response?.error || 'Failed to send OTP'));
+                });
+            });
+
+            setOtpSent(true);
+            setStatusMessage("Verification code sent to your email!");
+        } catch (err: any) {
+            console.error("Send OTP error:", err);
+            setError(err.message || "Failed to send OTP. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        setError("");
+        setStatusMessage("");
+        const trimmedEmail = email.trim().toLowerCase();
+        const trimmedOtp = otp.trim();
+
+        if (isAdminEmail(trimmedEmail)) {
+            if (!trimmedOtp) {
+                setError("Please enter your password");
+                return;
+            }
+        } else {
+            if (!trimmedOtp || trimmedOtp.length !== 6) {
+                setError("Please enter a valid 6-digit verification code");
+                return;
+            }
+        }
+
+        setLoading(true);
+        try {
+            const response = await new Promise<any>((resolve, reject) => {
+                chrome.runtime.sendMessage({
+                    action: 'proxyFetch',
+                    url: `${CONFIG.API.AI_SERVICE}/api/auth/verify-otp`,
+                    options: {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: trimmedEmail, otp: trimmedOtp })
+                    }
+                }, (response) => {
+                    if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+                    else if (response && response.success) resolve(response.data);
+                    else reject(new Error(response?.error || (isAdminEmail(trimmedEmail) ? 'Invalid password' : 'Invalid verification code')));
+                });
+            });
+
+            if (response && response.token) {
+                // Save to local storage
+                await chrome.storage.local.set({
+                    auth_token: response.token,
+                    auth_email: trimmedEmail
+                });
+                onSuccess(trimmedEmail, response.token);
+            } else {
+                throw new Error("Invalid response structure from authentication server");
+            }
+        } catch (err: any) {
+            console.error("Verify OTP error:", err);
+            setError(err.message || (isAdminEmail(trimmedEmail) ? "Verification failed. Please check your password." : "Verification failed. Please check your code."));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="auth-page">
+            <div className="auth-card">
+                <div className="auth-header">
+                    <img src="/assets/icon128.png" alt="Logo" className="auth-logo" />
+                    <h1>ApplyWizz Portal</h1>
+                    <p>Enter your professional email to authenticate</p>
+                </div>
+
+                {error && <div className="auth-alert error">⚠️ {error}</div>}
+                {statusMessage && <div className="auth-alert success">✅ {statusMessage}</div>}
+
+                <div className="auth-form">
+                    <div className="form-field">
+                        <label>Email Address</label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="username@applywizz.com"
+                            disabled={loading || otpSent}
+                            className="auth-input"
+                        />
+                        <span className="input-hint">Must end with @applywizz.com or @applywizz.ai</span>
+                    </div>
+
+                    {otpSent && (
+                        <div className="form-field animation-slide-in">
+                            <label>{isAdminEmail(email) ? "Password" : "Verification Code (OTP)"}</label>
+                            <input
+                                type={isAdminEmail(email) ? "password" : "text"}
+                                value={otp}
+                                onChange={(e) => {
+                                    if (isAdminEmail(email)) {
+                                        setOtp(e.target.value);
+                                    } else {
+                                        setOtp(e.target.value.replace(/\D/g, "").substring(0, 6));
+                                    }
+                                }}
+                                placeholder={isAdminEmail(email) ? "Enter password" : "Enter 6-digit OTP"}
+                                disabled={loading}
+                                className="auth-input otp-input"
+                                maxLength={isAdminEmail(email) ? undefined : 6}
+                            />
+                        </div>
+                    )}
+
+                    {!otpSent ? (
+                        <button
+                            onClick={handleSendOtp}
+                            disabled={loading || !email.trim()}
+                            className="auth-btn"
+                        >
+                            {loading ? "Sending..." : (isAdminEmail(email) ? "Continue with Password" : "Send Verification Code")}
+                        </button>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <button
+                                onClick={handleVerifyOtp}
+                                disabled={loading || (isAdminEmail(email) ? !otp.trim() : otp.length !== 6)}
+                                className="auth-btn success-btn"
+                            >
+                                {loading ? "Verifying..." : (isAdminEmail(email) ? "Log In" : "Verify & Login")}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setOtpSent(false);
+                                    setOtp("");
+                                    setError("");
+                                    setStatusMessage("");
+                                }}
+                                disabled={loading}
+                                className="auth-btn link-btn"
+                            >
+                                Change Email
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const Onboarding: React.FC = () => {
     const [step, setStep] = useState(0); // 0 is Landing Page
     const [profile, setProfile] = useState<CanonicalProfile>(EMPTY_PROFILE);
     const [fetching, setFetching] = useState(false);
+    const [fetchingStatus, setFetchingStatus] = useState("");
     const [apwId, setApwId] = useState("");
+    const [authenticated, setAuthenticated] = useState(false);
+    const [authEmail, setAuthEmail] = useState("");
+    const [checkingAuth, setCheckingAuth] = useState(true);
 
-    // Support Edit Mode
+    // Support Edit Mode and auto-fetch from lead_id/leadId
     useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                const stored = await chrome.storage.local.get(["auth_token", "auth_email"]);
+                if (stored.auth_token && stored.auth_email) {
+                    setAuthenticated(true);
+                    setAuthEmail(stored.auth_email);
+                }
+            } catch (err) {
+                console.error("Auth check failed:", err);
+            } finally {
+                setCheckingAuth(false);
+            }
+        };
+        checkAuth();
+
         const urlParams = new URLSearchParams(window.location.search);
         const mode = urlParams.get('mode');
+        const leadId = urlParams.get('lead_id') || urlParams.get('leadId');
 
-        if (mode === 'edit') {
+        if (leadId) {
+            const fetchOnboardingDetails = async () => {
+                setFetching(true);
+                setFetchingStatus("Connecting to CRM and loading details...");
+                try {
+                    console.log(`[Onboarding] Auto-fetching details for lead ID: ${leadId}`);
+                    const resJson = await fetchOnboardingDetailsFromApi(leadId);
+                    if (resJson && resJson.success && resJson.data) {
+                        let mappedProfile = mapClientOnboardingToProfile(resJson.data, profile);
+                        mappedProfile.metadata = {
+                            ...mappedProfile.metadata,
+                            apwId: leadId
+                        };
+
+                        if (resJson.data.resume_path) {
+                            try {
+                                console.log(`[Onboarding] Found resume_path: ${resJson.data.resume_path}. Starting fetch and parse...`);
+                                mappedProfile = await fetchAndParseResume(resJson.data.resume_path, mappedProfile, resJson.data.resume_url, setFetchingStatus);
+                                console.log("[Onboarding] Resume successfully fetched and parsed.");
+                            } catch (parseErr: any) {
+                                console.error("[Onboarding] Failed to fetch or parse resume from S3/Supabase:", parseErr);
+                                alert(`Profile details loaded, but failed to fetch/parse resume: ${parseErr.message}`);
+                            }
+                        }
+
+                        setProfile(mappedProfile);
+                        await saveProfile(mappedProfile);
+                        console.log("[Onboarding] Successfully loaded client onboarding details from URL query parameter");
+                        setStep(1); // Go straight to step 1 (Personal Info) to let them view
+                    }
+                } catch (error: any) {
+                    console.error("[Onboarding] Failed to auto-fetch onboarding details:", error);
+                    alert(`Failed to load onboarding details for Lead ID ${leadId}: ${error.message}`);
+                } finally {
+                    setFetching(false);
+                    setFetchingStatus("");
+                }
+            };
+            fetchOnboardingDetails();
+        } else if (mode === 'edit') {
             const loadExistingProfile = async () => {
                 const existing = await loadProfile();
                 if (existing) {
@@ -179,7 +530,7 @@ const Onboarding: React.FC = () => {
 
     const handleApiFetch = async () => {
         if (!apwId.trim()) {
-            alert("Please enter a valid APW ID");
+            alert("Please enter a valid ID");
             return;
         }
 
@@ -187,39 +538,55 @@ const Onboarding: React.FC = () => {
         setApwId(normalizedId);
 
         setFetching(true);
+        setFetchingStatus("Connecting to CRM and loading details...");
         try {
-            // 1. Fetch from Local Lead Details API
-            let localData = {};
-            let isLocalSuccess = false;
+            // First try fetching from Client Onboarding Details API
+            let isOnboardingSuccess = false;
             try {
-                // Changed to use configurable Backend URL
-                const backendUrl = CONFIG.API.BACKEND_URL;
-                const localResponse = await fetch(`${backendUrl}/api/lead-details/${normalizedId}`);
-                if (!localResponse.ok) {
-                    console.warn(`Local API Error: ${localResponse.status}`);
-                } else {
-                    localData = await localResponse.json();
-                    isLocalSuccess = true;
+                const onboardingJson = await fetchOnboardingDetailsFromApi(normalizedId);
+                if (onboardingJson && onboardingJson.success && onboardingJson.data) {
+                    let mappedProfile = mapClientOnboardingToProfile(onboardingJson.data, profile);
+                    mappedProfile.metadata = {
+                        ...mappedProfile.metadata,
+                        apwId: normalizedId
+                    };
+
+                    if (onboardingJson.data.resume_path) {
+                        try {
+                            console.log(`[Onboarding] Found resume_path: ${onboardingJson.data.resume_path}. Starting fetch and parse...`);
+                            mappedProfile = await fetchAndParseResume(onboardingJson.data.resume_path, mappedProfile, onboardingJson.data.resume_url, setFetchingStatus);
+                            alert("Profile and resume successfully fetched and parsed!");
+                        } catch (parseErr: any) {
+                            console.error("[Onboarding] Failed to fetch or parse resume from S3/Supabase:", parseErr);
+                            alert(`Profile details loaded, but failed to fetch/parse resume: ${parseErr.message}`);
+                        }
+                    } else {
+                        alert("Profile successfully fetched from Client Onboarding Details!");
+                    }
+
+                    setProfile(mappedProfile);
+                    await saveProfile(mappedProfile);
+                    isOnboardingSuccess = true;
                 }
-            } catch (e) {
-                console.warn("Local API unreachable, skipping:", e);
-                // Continue execution to try Vercel API
+            } catch (err) {
+                console.warn("Client Onboarding API fetch failed, trying fallback sources:", err);
             }
 
-            // 2. Fetch from Vercel Client Details API
+            if (isOnboardingSuccess) {
+                return;
+            }
+
+            // Fallback: Fetch from Vercel Client Details API
             const vercelUrl = CONFIG.API.VERCEL_CRM;
             const vercelResponse = await fetch(`${vercelUrl}?applywizz_id=${normalizedId}`);
             if (!vercelResponse.ok) {
                 console.warn(`Vercel API Error: ${vercelResponse.status}`);
+                throw new Error(`Failed to fetch data from Vercel CRM: ${vercelResponse.status}`);
             }
-            const vercelData = vercelResponse.ok ? await vercelResponse.json() : {};
+            const vercelData = await vercelResponse.json();
 
-            if (!isLocalSuccess && !vercelResponse.ok) {
-                throw new Error("Failed to fetch data from both sources.");
-            }
-
-            // 3. Map multi-source data to profile
-            const mappedProfile = mapMultiSourceToProfile(localData, vercelData, profile);
+            // Map CRM data to profile
+            const mappedProfile = mapMultiSourceToProfile({}, vercelData, profile);
 
             // Set the apwId in metadata
             mappedProfile.metadata = {
@@ -229,12 +596,13 @@ const Onboarding: React.FC = () => {
 
             setProfile(mappedProfile);
             await saveProfile(mappedProfile);
-            alert("Profile successfully fetched from both API sources!");
+            alert("Profile successfully fetched from fallback API sources!");
         } catch (error) {
             console.error("API Fetch Error:", error);
             alert("Failed to fetch data from APIs. Please fill out manually.");
         } finally {
             setFetching(false);
+            setFetchingStatus("");
         }
     };
 
@@ -251,10 +619,43 @@ const Onboarding: React.FC = () => {
         setProfile({ ...profile, ...updates });
     };
 
+    // Called by StepPersonal after resume parsing succeeds — replaces profile with enriched version
+    const handleResumeParse = async (enrichedProfile: CanonicalProfile) => {
+        setProfile(enrichedProfile);
+        await saveProfile(enrichedProfile);
+    };
+
     const totalSteps = 5;
+
+    if (checkingAuth) {
+        return (
+            <div className="onboarding-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div className="fetching-loader">
+                    <div className="spinner"></div>
+                    <h3>Verifying session...</h3>
+                </div>
+            </div>
+        );
+    }
+
+    if (!authenticated) {
+        return <AuthPage onSuccess={(email, token) => {
+            setAuthenticated(true);
+            setAuthEmail(email);
+        }} />;
+    }
 
     return (
         <div className="onboarding-container">
+            {fetching && (
+                <div className="fetching-overlay">
+                    <div className="fetching-loader">
+                        <div className="spinner"></div>
+                        <h3>{fetchingStatus || "Loading..."}</h3>
+                        <p>Please wait while we retrieve your profile details and parse your resume.</p>
+                    </div>
+                </div>
+            )}
             {step > 0 && (
                 <div className="onboarding-progress">
                     <div className="progress-steps">
@@ -285,6 +686,7 @@ const Onboarding: React.FC = () => {
                         apwId={apwId}
                         setApwId={setApwId}
                         onApiFetch={handleApiFetch}
+                        onResumeParse={handleResumeParse}
                         fetching={fetching}
                         onNext={() => setStep(2)}
                         onBack={() => setStep(0)}
@@ -322,10 +724,13 @@ const StepPersonal: React.FC<{
     apwId: string;
     setApwId: (id: string) => void;
     onApiFetch: () => void;
+    onResumeParse: (updatedProfile: CanonicalProfile) => void;
     fetching: boolean;
     onNext: () => void;
     onBack: () => void;
-}> = ({ profile, updateProfile, apwId, setApwId, onApiFetch, fetching, onNext, onBack }) => {
+}> = ({ profile, updateProfile, apwId, setApwId, onApiFetch, onResumeParse, fetching, onNext, onBack }) => {
+    const [resumeParsing, setResumeParsing] = React.useState(false);
+    const [parseStatus, setParseStatus] = React.useState<{ type: 'success' | 'error' | 'none'; message: string }>({ type: 'none', message: '' });
 
     const handlePrefill = () => {
         updateProfile(DEFAULT_PROFILE_DATA);
@@ -342,6 +747,7 @@ const StepPersonal: React.FC<{
             return;
         }
 
+        // 1. Save the PDF as base64 for applications
         const reader = new FileReader();
         reader.onload = async (event) => {
             const base64 = event.target?.result as string;
@@ -356,6 +762,42 @@ const StepPersonal: React.FC<{
             });
         };
         reader.readAsDataURL(file);
+
+        // 2. If it's a resume, also parse it to extract education, skills, and experience
+        if (type === 'resume') {
+            setResumeParsing(true);
+            setParseStatus({ type: 'none', message: '' });
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const parserUrl = CONFIG.API.RESUME_PARSER_API;
+                const response = await fetch(parserUrl, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response.ok) {
+                    throw new Error(`Parser returned HTTP ${response.status}`);
+                }
+                const parserJson = await response.json();
+                // Map parsed data into the current profile (skills, education, certifications)
+                const enrichedProfile = mapResumeParserToProfile(parserJson, profile);
+                onResumeParse(enrichedProfile);
+                const skillCount = Array.isArray(parserJson.skills) ? parserJson.skills.length : 0;
+                const eduCount = Array.isArray(parserJson.education_history) ? parserJson.education_history.length : 0;
+                setParseStatus({
+                    type: 'success',
+                    message: `✅ Resume parsed! Found ${eduCount} education record(s) and ${skillCount} skill(s).`
+                });
+            } catch (err: any) {
+                console.error('[Resume Parser] Failed:', err);
+                setParseStatus({
+                    type: 'error',
+                    message: `⚠️ Resume parsing failed: ${err.message}. You can still fill details manually.`
+                });
+            } finally {
+                setResumeParsing(false);
+            }
+        }
     };
 
     return (
@@ -388,10 +830,10 @@ const StepPersonal: React.FC<{
                         ⚡ Prefill (Testing)
                     </button>
                 </div>
-                <p style={{ color: '#666', fontSize: '13px', margin: '0 0 15px 0' }}>Upload your latest Resume and Cover Letter (PDF only) to be used for automated applications.</p>
+                <p style={{ color: '#666', fontSize: '13px', margin: '0 0 15px 0' }}>Upload your latest Resume (PDF) to auto-fill education &amp; skills, and your Cover Letter for automated applications.</p>
                 <div className="form-row" style={{ marginBottom: '0' }}>
                     <div className="form-field" style={{ marginBottom: '0' }}>
-                        <label style={{ fontSize: '12px', fontWeight: '600' }}>Resume (PDF)</label>
+                        <label style={{ fontSize: '12px', fontWeight: '600' }}>Resume (PDF) — auto-parses skills &amp; education</label>
                         <div className="file-upload-wrapper">
                             <input
                                 type="file"
@@ -399,11 +841,20 @@ const StepPersonal: React.FC<{
                                 onChange={(e) => handleFileUpload(e, 'resume')}
                                 id="resume-upload"
                                 style={{ display: 'none' }}
+                                disabled={resumeParsing}
                             />
-                            <label htmlFor="resume-upload" className="file-upload-label" style={{ padding: '10px', fontSize: '13px' }}>
-                                {profile.documents?.resume ? `✅ ${profile.documents.resume.fileName}` : "Upload Resume"}
+                            <label htmlFor="resume-upload" className="file-upload-label" style={{ padding: '10px', fontSize: '13px', opacity: resumeParsing ? 0.6 : 1 }}>
+                                {resumeParsing ? '⏳ Parsing resume...' : profile.documents?.resume ? `✅ ${profile.documents.resume.fileName}` : '📄 Upload Resume'}
                             </label>
                         </div>
+                        {parseStatus.type !== 'none' && (
+                            <p style={{
+                                marginTop: '6px', fontSize: '12px',
+                                color: parseStatus.type === 'success' ? '#2e7d32' : '#b71c1c',
+                                background: parseStatus.type === 'success' ? '#f1f8e9' : '#ffebee',
+                                padding: '6px 10px', borderRadius: '6px', lineHeight: '1.4'
+                            }}>{parseStatus.message}</p>
+                        )}
                     </div>
                     <div className="form-field" style={{ marginBottom: '0' }}>
                         <label style={{ fontSize: '12px', fontWeight: '600' }}>Cover Letter (PDF)</label>
@@ -426,13 +877,13 @@ const StepPersonal: React.FC<{
             {!hasData && (
                 <div className="onboarding-source-options">
                     <div className="api-fetch-section">
-                        <h3>Fetch from Portfolio ID</h3>
+                        <h3>Fetch from Portfolio ID / Lead ID</h3>
                         <div className="api-input-group">
                             <input
                                 type="text"
                                 value={apwId}
                                 onChange={(e) => setApwId(e.target.value.toUpperCase())}
-                                placeholder="e.g. AWL-1712"
+                                placeholder="e.g. AWL-1712 or Lead ID"
                                 className="apw-id-input"
                             />
                             <button

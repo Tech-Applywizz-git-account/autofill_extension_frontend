@@ -428,7 +428,7 @@ export async function fillGreenhouseDropdown(
         for (let attempt = 0; attempt < 3; attempt++) {
             for (const selector of menuSelectors) {
                 const found = Array.from(document.querySelectorAll<HTMLElement>(selector))
-                    .find(el => el.offsetParent !== null); // visible only
+                    .find(el => document.hidden ? (window.getComputedStyle(el).display !== 'none' && window.getComputedStyle(el).visibility !== 'hidden') : el.offsetParent !== null);
                 if (found) {
                     menu = found;
                     break;

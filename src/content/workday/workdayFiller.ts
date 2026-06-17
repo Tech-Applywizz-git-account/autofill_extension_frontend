@@ -355,7 +355,8 @@ async function fillDropdown(el: HTMLElement, targetValue: string, label: string)
             const id = lb.id || lb.outerHTML.substring(0, 100);
             if (existingListboxIds.has(id)) return false;
             const style = window.getComputedStyle(lb);
-            return style.display !== 'none' && style.visibility !== 'hidden' && (lb as HTMLElement).offsetParent !== null;
+            const isVisible = document.hidden ? (style.display !== 'none' && style.visibility !== 'hidden') : (lb as HTMLElement).offsetParent !== null;
+            return style.display !== 'none' && style.visibility !== 'hidden' && isVisible;
         });
 
         let listbox: Element | null = null;

@@ -50,13 +50,17 @@ interface DropdownOption {
 function isElementVisible(el: HTMLElement): boolean {
     if (!el || !(el instanceof Element)) return false;
 
-    const rect = el.getBoundingClientRect();
-    if (rect.width < OPTION_VISIBILITY_MIN_PX || rect.height < OPTION_VISIBILITY_MIN_PX) {
+    const style = window.getComputedStyle(el);
+    if (style.visibility === 'hidden' || style.display === 'none' || style.opacity === '0') {
         return false;
     }
 
-    const style = window.getComputedStyle(el);
-    if (style.visibility === 'hidden' || style.display === 'none' || style.opacity === '0') {
+    if (document.hidden) {
+        return true; // Bypass layout dimension check when minimized/hidden
+    }
+
+    const rect = el.getBoundingClientRect();
+    if (rect.width < OPTION_VISIBILITY_MIN_PX || rect.height < OPTION_VISIBILITY_MIN_PX) {
         return false;
     }
 
@@ -215,9 +219,11 @@ export class DropdownWatcher {
         return new Promise<HTMLElement[]>((resolve, reject) => {
             let resolved = false;
             let rafId: number | null = null;
+            let intervalId: any = null;
 
             const cleanup = () => {
                 if (rafId) cancelAnimationFrame(rafId);
+                if (intervalId) clearInterval(intervalId);
                 this.cleanup();
             };
 
@@ -260,6 +266,12 @@ export class DropdownWatcher {
                 rafId = requestAnimationFrame(rafLoop);
             };
             rafId = requestAnimationFrame(rafLoop);
+
+            // Backup interval polling for background tabs where RAF is suspended
+            intervalId = setInterval(() => {
+                if (resolved) return;
+                tryResolve('interval');
+            }, 200);
 
             // Timeout
             setTimeout(() => {

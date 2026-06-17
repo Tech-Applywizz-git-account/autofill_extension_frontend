@@ -137,7 +137,7 @@ export class FormScanner {
         const workdayMultiPageEl = document.querySelector(
             WORKDAY_MULTI_PAGE_AIDS_CLASSIFY.map(a => `[data-automation-id="${a}"]`).join(', ')
         );
-        const hasWorkdayMultiPageBtn = workdayMultiPageEl !== null && (workdayMultiPageEl as HTMLElement).offsetParent !== null;
+        const hasWorkdayMultiPageBtn = workdayMultiPageEl !== null && (document.hidden ? (window.getComputedStyle(workdayMultiPageEl).display !== 'none' && window.getComputedStyle(workdayMultiPageEl).visibility !== 'hidden') : (workdayMultiPageEl as HTMLElement).offsetParent !== null);
         if (hasWorkdayMultiPageBtn) {
             console.log(`${LOG_PREFIX}    🔄 Workday automation-id MULTI-PAGE button detected: [data-automation-id="${workdayMultiPageEl!.getAttribute('data-automation-id')}"]`);
         }
@@ -787,21 +787,26 @@ export class FormScanner {
      * Check if element is visible
      */
     private isVisible(element: HTMLElement): boolean {
-        const rect = element.getBoundingClientRect();
         const style = getComputedStyle(element);
 
-        // Ashby and many other platforms hide native inputs with opacity: 0
-        // while their custom wrappers are visible. We must allow these.
+        // Check explicit CSS hiding
+        if (style.display === 'none' || style.visibility === 'hidden') {
+            return false;
+        }
+
         const isHiddenInput = element instanceof HTMLInputElement &&
             (element.type === 'radio' || element.type === 'checkbox' || element.type === 'file');
 
-        return (
-            rect.width > 0 &&
-            rect.height > 0 &&
-            style.display !== 'none' &&
-            style.visibility !== 'hidden' &&
-            (style.opacity !== '0' || isHiddenInput)
-        );
+        if (style.opacity === '0' && !isHiddenInput) {
+            return false;
+        }
+
+        if (document.hidden) {
+            return true; // Bypass layout dimension check when minimized/hidden
+        }
+
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
     }
 
     /**

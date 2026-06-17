@@ -9,15 +9,16 @@ export const CONFIG = {
         AI_SERVICE: process.env.REACT_APP_AI_URL || 'https://autofill-extension-backend.onrender.com',
         PATTERN_API: process.env.REACT_APP_PATTERN_URL || 'https://autofill-extension-backend.onrender.com/api/patterns',
         USER_DATA: process.env.REACT_APP_USER_DATA_URL || 'https://autofill-extension-backend.onrender.com/api/user-data',
-        VERCEL_CRM: process.env.REACT_APP_VERCEL_CRM_URL || 'https://ticketingtoolapplywizz.vercel.app/api/get-client-details',
-        BACKEND_URL: process.env.REACT_APP_BACKEND_URL || 'http://localhost:3000',
+        VERCEL_CRM: process.env.REACT_APP_VERCEL_CRM_URL || 'https://applywizz-crm-tool.vercel.app/api/get-client-details',
+        CLIENT_ONBOARDING_API: process.env.REACT_APP_CLIENT_ONBOARDING_API_URL || 'https://applywizz-crm-tool.vercel.app/api/client-onboarding-details',
+        RESUME_PARSER_API: process.env.REACT_APP_RESUME_PARSER_URL || 'https://resume-parser-without-ai.onrender.com/parse',
         STATS_URL: process.env.REACT_APP_AI_URL || 'https://autofill-extension-backend.onrender.com',
         AI_API_KEY: process.env.REACT_APP_AI_API_KEY || '',
     },
 
     // Timeouts (milliseconds)
     TIMEOUTS: {
-        DROPDOWN_SCAN: parseInt(process.env.REACT_APP_DROPDOWN_TIMEOUT || '3000', 10),
+        DROPDOWN_SCAN: parseInt(process.env.REACT_APP_DROPDOWN_TIMEOUT || '2000', 10),
         AI_REQUEST: parseInt(process.env.REACT_APP_AI_TIMEOUT || '30000', 10),
         PATTERN_SYNC: parseInt(process.env.REACT_APP_PATTERN_SYNC_TIMEOUT || '5000', 10),
     },
@@ -33,6 +34,11 @@ export const CONFIG = {
         MIN_CONFIDENCE: parseFloat(process.env.REACT_APP_MIN_CONFIDENCE || '0.6'),
         FUZZY_MATCH: parseFloat(process.env.REACT_APP_FUZZY_THRESHOLD || '0.7'),
         PATTERN_MEMORY: parseFloat(process.env.REACT_APP_PATTERN_MEMORY_CONFIDENCE || '0.95'),
+    },
+
+    // Mapping Strategy
+    STRATEGY: {
+        MAPPING_PRIORITY: (process.env.REACT_APP_MAPPING_PRIORITY || 'AI_FIRST') as 'AI_FIRST' | 'INTERNAL_FIRST',
     },
 
     // Canonical Field Patterns (for intent detection)

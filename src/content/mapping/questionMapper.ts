@@ -5,13 +5,14 @@
 
 import { normalize } from '../utils/stringUtils';
 import { loadProfile } from '../../core/storage/profileStorage';
-import { askAI } from '../../core/ai/aiService';
+import { askAI, askAIBatch } from '../../core/ai/aiService';
 import { patternStorage } from '../../core/storage/patternStorage';
 import { findQuestionIntent, getValueByIntent } from './questionPatternDatabase';
 import { resolveHardcoded } from './hardcodedAnswerEngine';
 import { getCachedResponse, setCachedResponse } from '../../core/storage/aiResponseCache';
 import { AnalyticsTracker } from '../../core/analytics/AnalyticsTracker';
 import { FieldType } from '../../types/fieldDetection';
+import { CONFIG } from '../../config';
 
 export interface ScannedQuestion {
     questionText: string;
@@ -133,274 +134,152 @@ export class QuestionMapper {
         console.log(`   ✅ Loaded ${learnedPatterns.length} patterns (Local + Global)\n`);
 
         const mappedAnswers: MappedAnswer[] = [];
-        const unmappedForAI: ScannedQuestion[] = [];
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Phase -2: CUSTOM ANSWERS — User manual overrides take absolute priority
-        // ─────────────────────────────────────────────────────────────────────
-        console.log(`\n⭐ Phase -2: Checking custom manual overrides...\n`);
-        const phaseNeg1Candidates: ScannedQuestion[] = [];
-        for (const q of uniqueQuestions) {
-            if (profile.customAnswers && profile.customAnswers[q.questionText]) {
-                const customAnswer = profile.customAnswers[q.questionText];
-                console.log(`  ⭐ [CUSTOM] "${q.questionText}" → "${customAnswer}"`);
+        // Load mapping priority from chrome.storage.local
+        const storageResult = await chrome.storage.local.get('mappingPriority');
+        const mappingPriority = (storageResult.mappingPriority || CONFIG.STRATEGY.MAPPING_PRIORITY || 'AI_FIRST') as 'AI_FIRST' | 'INTERNAL_FIRST';
+        console.log(`🧭 Mapping Priority Strategy: ${mappingPriority}`);
 
-                // Validate against options if this is a dropdown/radio
-                let finalAnswer: string | string[] = customAnswer;
-                if (q.options && q.options.length > 0) {
-                    const matched = this.matchInOptions(customAnswer as any, q.options, 1.0);
-                    if (matched) {
-                        finalAnswer = matched.answer;
-                        console.log(`     ✓ Validated against options: "${finalAnswer}"`);
+        if (mappingPriority === 'AI_FIRST') {
+            console.log(`🤖 [AI_FIRST] Mode active. Executing AI processing first.`);
+
+            // 1. Run AI first on all unique questions
+            if (uniqueQuestions.length > 0) {
+                console.log(`📤 Sending all ${uniqueQuestions.length} unique question(s) to AI for mapping...`);
+
+                // Notify UI of AI count immediately (before calling AI)
+                window.dispatchEvent(new CustomEvent('AI_COUNT_UPDATE', {
+                    detail: { count: uniqueQuestions.length }
+                }));
+
+                const aiAnswers = await this.requestAIAnswers(uniqueQuestions, profile);
+
+                // Learn from each successful AI response
+                console.log(`\n📚 Learning from AI responses...`);
+                for (const question of uniqueQuestions) {
+                    const answer = aiAnswers.find(a => a.questionText === question.questionText && a.fieldType === question.fieldType);
+                    if (answer) {
+                        await this.learnFromAIResponse(question, answer, profile);
                     }
                 }
 
-                // RESOLVE FILE URLS
-                let fileName: string | undefined = undefined;
-                if (q.fieldType === FieldType.FILE_UPLOAD) {
-                    const resolved = this.resolveFileAnswer(finalAnswer, q, profile);
-                    finalAnswer = resolved.answer;
-                    fileName = resolved.fileName;
-                }
+                mappedAnswers.push(...aiAnswers);
+                console.log(`✅ AI phase complete. Learned ${aiAnswers.length} new patterns.\n`);
 
-                mappedAnswers.push({
-                    selector: q.selector,
-                    questionText: q.questionText,
-                    answer: finalAnswer,
-                    source: 'hardcoded_override',
-                    confidence: 1.0,
-                    required: q.required,
-                    fieldType: q.fieldType,
-                    options: q.options || undefined,
-                    fileName
-                });
-            } else {
-                phaseNeg1Candidates.push(q);
-            }
-        }
-        console.log(`  ✅ Custom overrides resolved ${uniqueQuestions.length - phaseNeg1Candidates.length}/${uniqueQuestions.length} questions.\n`);
+                // 2. Identify unresolved questions to run fallbacks on
+                const unresolvedByAI = uniqueQuestions.filter(q =>
+                    !aiAnswers.some(a => a.questionText === q.questionText && a.fieldType === q.fieldType)
+                );
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Phase -1: HARDCODED ENGINE — deterministic, zero AI, zero network
-        // Every common job-platform question is answered directly from profile.
-        // If resolved, the question never reaches Phase 0, learned patterns, or AI.
-        // ─────────────────────────────────────────────────────────────────────
-        console.log(`\n⚡ Phase -1: Hardcoded answer engine (dynamic, global logic)...\n`);
-        const phase0Candidates: ScannedQuestion[] = [];
-        for (const q of phaseNeg1Candidates) {
-            // 🟢 UPDATED: Pass learnedPatterns to the hardcoded engine
-            const hResult = resolveHardcoded(q.questionText, q.fieldType, q.options || undefined, profile, learnedPatterns);
+                if (unresolvedByAI.length > 0) {
+                    console.log(`🔄 Fallback: Resolving ${unresolvedByAI.length} unresolved question(s) using internal logic (Overrides → Hardcoded → Patterns)...`);
 
-            if (hResult !== null) {
-                // BLACKLIST: Skip placeholder/fake UI questions entirely
-                if (hResult.answer === '__SKIP__') {
-                    console.log(`  🚫 [BLACKLIST] Skipping placeholder question: "${q.questionText}"`);
-                    continue; // Don't add to phase0Candidates OR mappedAnswers
-                }
-
-                let validatedAnswer = hResult.answer;
-
-                // VALIDATION: If it's a dropdown/select, ensure the answer is actually in the options
-                if (q.options && q.options.length > 0 && q.fieldType !== FieldType.FILE_UPLOAD) {
-                    const optionMatch = this.matchInOptions(hResult.answer, q.options, 1.0);
-                    if (optionMatch) {
-                        validatedAnswer = optionMatch.answer;
-                    } else if (q.fieldType === FieldType.CHECKBOX || q.fieldType === FieldType.RADIO_GROUP) {
-                        // For checkboxes/radios, allow "Yes/No" or "True/False" to pass through even if label doesn't match
-                        // FieldFiller or AI will handle the boolean intent
-                        const lowerVal = String(hResult.answer).toLowerCase();
-                        if (['yes', 'no', 'true', 'false'].includes(lowerVal)) {
-                            console.log(`  ✅ [CHECKBOX/RADIO] Accepting boolean intent "${hResult.answer}" for field "${q.questionText}"`);
-                            validatedAnswer = hResult.answer;
+                    // Fallback Phase -2: Custom Overrides
+                    const customFallbackRemaining: ScannedQuestion[] = [];
+                    for (const q of unresolvedByAI) {
+                        const customResult = this.tryCustomOverride(q, profile);
+                        if (customResult) {
+                            mappedAnswers.push(customResult);
+                            console.log(`     ⭐ [CUSTOM FALLBACK] "${q.questionText}" → "${customResult.answer}"`);
                         } else {
-                            console.log(`  ⚠️ Phase -1 [HARDCODED]: "${q.questionText}" → "${hResult.answer}" not in options, falling through`);
-                            phase0Candidates.push(q);
-                            continue;
-                        }
-                    } else {
-                        // Hardcoded engine gave a value that doesn't exist in the dropdown
-                        console.log(`  ⚠️ Phase -1 [HARDCODED]: "${q.questionText}" → "${hResult.answer}" not in options, falling through`);
-                        phase0Candidates.push(q);
-                        continue;
-                    }
-                }
-
-                // RESOLVE FILE URLS
-                let fileName: string | undefined = hResult.answer && typeof hResult.answer === 'object' ? (hResult as any).fileName : undefined;
-                if (q.fieldType === FieldType.FILE_UPLOAD) {
-                    const resolved = this.resolveFileAnswer(validatedAnswer, q, profile);
-                    validatedAnswer = resolved.answer;
-                    fileName = resolved.fileName;
-                }
-
-                mappedAnswers.push({
-                    selector: q.selector,
-                    questionText: q.questionText,
-                    answer: validatedAnswer,
-                    source: 'hardcoded',
-                    confidence: hResult.confidence,
-                    required: q.required,
-                    fieldType: q.fieldType,
-                    options: q.options || undefined,
-                    canonicalKey: hResult.intent,
-                    fileName
-                });
-                console.log(`  ⚡ [HARDCODED] "${q.questionText}" → "${validatedAnswer}" (${hResult.intent})`);
-            } else {
-                phase0Candidates.push(q);
-            }
-        }
-        console.log(`  ✅ Hardcoded resolved ${phaseNeg1Candidates.length - phase0Candidates.length}/${phaseNeg1Candidates.length} questions. ${phase0Candidates.length} remaining.\n`);
-
-        // ─────────────────────────────────────────────────────────────────────
-        // Phase 0: Pattern DB — intent patterns from questionPatternDatabase.ts
-        // ─────────────────────────────────────────────────────────────────────
-        console.log(`🎯 Phase 0: Checking predefined question patterns...\n`);
-
-        // Phase 0: Try predefined question patterns (fastest - instant recognition)
-        for (const q of phase0Candidates) {
-            const match = findQuestionIntent(q.questionText, q.fieldType);
-            if (match) {
-                const intent = match.intent;
-                let value = getValueByIntent(profile, intent);
-                // Debug log to trace "No" values
-                if (value === 'No' || value === 'No Experience') {
-                    console.warn(`  ⚠️ Debug: Intent "${intent}" returned "${value}" from profile`);
-                }
-                if (value !== null && value !== undefined && value !== '') {
-                    let fileName: string | undefined = undefined;
-
-                    // SPECIAL HANDLING FOR FILE OBJECTS
-                    if (value && typeof value === 'object' && (value.base64 || value.url)) {
-                        fileName = value.fileName; // Don't default here, let resolveFileAnswer handle it
-                        const base64Data = value.base64 || '';
-                        value = base64Data.startsWith('data:') ? base64Data : `data:application/pdf;base64,${base64Data}`;
-                    } else if (typeof value === 'boolean') {
-                        // For boolean values, convert to Yes/No
-                        value = this.booleanToYesNo(value, q.options || undefined);
-                    } else {
-                        value = String(value);
-                    }
-
-                    // For dropdown/radio/checkbox fields, validate against available options
-                    // Skip validation for file fields (they don't have standard options)
-                    if (q.fieldType !== FieldType.FILE_UPLOAD && q.options && q.options.length > 0) {
-                        const optionMatch = this.matchInOptions(value, q.options, 1.0);
-                        if (optionMatch) {
-                            value = optionMatch.answer; // Use the exact option text
-                        } else {
-                            // Value not in options - fall through to learned/fuzzy/AI
-                            console.log(`  ⚠️ Phase 0: "${q.questionText}" → "${value}" not in options, falling through`);
-                            unmappedForAI.push(q);
-                            continue;
+                            customFallbackRemaining.push(q);
                         }
                     }
 
-                    // Successfully matched using predefined pattern
-                    const resolvedFile = this.resolveFileAnswer(value, q, profile);
+                    // Fallback Phase -1: Hardcoded Engine
+                    const hardcodedFallbackRemaining: ScannedQuestion[] = [];
+                    for (const q of customFallbackRemaining) {
+                        const hResult = this.tryHardcodedEngine(q, profile, learnedPatterns);
+                        if (hResult === '__SKIP__') {
+                            continue;
+                        } else if (hResult !== null) {
+                            mappedAnswers.push(hResult);
+                            console.log(`     ⚡ [HARDCODED FALLBACK] "${q.questionText}" → "${hResult.answer}" (${hResult.canonicalKey})`);
+                        } else {
+                            hardcodedFallbackRemaining.push(q);
+                        }
+                    }
 
-                    mappedAnswers.push({
-                        selector: q.selector,
-                        questionText: q.questionText,
-                        answer: resolvedFile.answer,
-                        source: 'canonical' as const,
-                        confidence: 1.0,
-                        required: q.required,
-                        fieldType: q.fieldType,
-                        options: q.options || undefined,
-                        canonicalKey: intent,
-                        fileName: resolvedFile.fileName || fileName // Pass the original filename
-                    });
-                    console.log(`  ⚡ "${q.questionText}" → ${intent} (predefined pattern: "${match.pattern}", value: "${fileName || value}")`);
-                    continue; // Skip to next question
+                    // Fallback Phase 0 & 1: Predefined & Learned Patterns
+                    for (const q of hardcodedFallbackRemaining) {
+                        const internalResult = await this.tryPredefinedOrLearned(q, profile);
+                        if (internalResult) {
+                            mappedAnswers.push(internalResult);
+                            console.log(`     🎯 [PATTERN FALLBACK] "${q.questionText}" → "${internalResult.answer}" (source: ${internalResult.source})`);
+                        } else {
+                            console.log(`     ❌ [FALLBACK FAILED] Could not resolve "${q.questionText}" with any fallback method.`);
+                        }
+                    }
                 }
             }
-            // No predefined pattern match or no profile value - will try canonical/learned/fuzzy
-            unmappedForAI.push(q);
-        }
-
-        console.log(`\n✅  Phase 0 Complete: ${mappedAnswers.length}/${uniqueQuestions.length} mapped via predefined patterns\n`);
-
-        // Phase 1: Try canonical, learned, then fuzzy matching for remaining questions
-        console.log(`🚀 Phase 1: Attempting canonical, learned pattern, and fuzzy matching...\n`);
-
-        const phase1Candidates = [...unmappedForAI]; // Copy questions that didn't match patterns
-        unmappedForAI.length = 0; // Clear for Phase 1 results
-
-        // Phase 1: Try canonical, learned, then fuzzy matching
-        for (const q of phase1Candidates) {
-            console.log(`\n  🔍 Mapping: "${q.questionText}"`);
-            const result = await this.tryMapping(q, profile);
-
-            // Lower threshold to 0.6 (60%) to use learned patterns
-            // Learned patterns typically have 60-95% confidence
-            if (result && result.confidence >= 0.6) {
-                // Confidence is good enough - use this answer
-                mappedAnswers.push({
-                    selector: q.selector,
-                    questionText: q.questionText,
-                    answer: result.answer,
-                    source: result.source as any,
-                    confidence: result.confidence,
-                    required: q.required,
-                    fieldType: q.fieldType,
-                    options: q.options || undefined,
-                    fileName: result.fileName // Include fileName if present
-                });
-
-                const sourceIcon = result.source === 'canonical' ? '🎯' : result.source === 'learned' ? '🧠' : '🔍';
-                console.log(`     ${sourceIcon} ✅ Mapped via ${result.source.toUpperCase()}: "${result.answer}" (${(result.confidence * 100).toFixed(0)}% confidence)`);
-            } else {
-                // Low confidence or no match - queue for AI
-                unmappedForAI.push(q);
-                console.log(`     ⏭️  ⚠️ No match - Queued for AI (confidence: ${result ? (result.confidence * 100).toFixed(0) + '%' : 'N/A'})`);
-            }
-        }
-
-        // Phase 2: Send unmapped questions to AI and LEARN from responses
-        console.log(`\n\n╔════════════════════════════════════════════════════════════════════╗`);
-        console.log(`║                Phase 1 Complete: ${mappedAnswers.length}/${uniqueQuestions.length} Mapped${' '.repeat(Math.max(0, 24 - mappedAnswers.length.toString().length - uniqueQuestions.length.toString().length))}║`);
-        console.log(`╚════════════════════════════════════════════════════════════════════╝\n`);
-
-        if (unmappedForAI.length > 0) {
-            console.log(`\n╔════════════════════════════════════════════════════════════════════╗`);
-            console.log(`║         🤖 Phase 2: AI Processing (${unmappedForAI.length} questions)${' '.repeat(Math.max(0, 26 - unmappedForAI.length.toString().length))}║`);
-            console.log(`╚════════════════════════════════════════════════════════════════════╝\n`);
-
-            console.log(`📤 Sending ${unmappedForAI.length} question(s) to AI for processing...\n`);
-            console.log(`❓ Questions for AI:`);
-            unmappedForAI.forEach((q, idx) => {
-                console.log(`   ${idx + 1}. "${q.questionText}"`);
-            });
-            console.log(``);
-
-            // Notify UI of AI count immediately (before calling AI)
-            window.dispatchEvent(new CustomEvent('AI_COUNT_UPDATE', {
-                detail: { count: unmappedForAI.length }
-            }));
-
-            const aiAnswers = await this.requestAIAnswers(unmappedForAI, profile);
-
-            console.log(`\n📚 Learning from AI responses...`);
-            // Learn from each AI response
-            for (let i = 0; i < unmappedForAI.length; i++) {
-                const question = unmappedForAI[i];
-                const answer = aiAnswers[i];
-
-                if (answer) {
-                    await this.learnFromAIResponse(question, answer, profile);
-                }
-            }
-
-            mappedAnswers.push(...aiAnswers);
-            console.log(`✅ AI phase complete. Learned ${aiAnswers.length} new patterns.\n`);
         } else {
-            console.log(`\n✨ All questions mapped without AI! No AI calls needed.\n`);
-        }
+            console.log(`⚡ [INTERNAL_FIRST] Mode active. Executing internal logic first.`);
 
-        console.log(`\n╔════════════════════════════════════════════════════════════════════╗`);
-        console.log(`║           ✅ MAPPING COMPLETE: ${mappedAnswers.length}/${uniqueQuestions.length} Answers Ready${' '.repeat(Math.max(0, 20 - mappedAnswers.length.toString().length - uniqueQuestions.length.toString().length))}║`);
-        console.log(`╚════════════════════════════════════════════════════════════════════╝\n`);
+            // 1. Phase -2: Custom Overrides
+            const phaseNeg1Candidates: ScannedQuestion[] = [];
+            for (const q of uniqueQuestions) {
+                const customResult = this.tryCustomOverride(q, profile);
+                if (customResult) {
+                    mappedAnswers.push(customResult);
+                } else {
+                    phaseNeg1Candidates.push(q);
+                }
+            }
+            console.log(`  ✅ Custom overrides resolved ${uniqueQuestions.length - phaseNeg1Candidates.length}/${uniqueQuestions.length} questions.\n`);
+
+            // 2. Phase -1: Hardcoded Engine
+            const phase0Candidates: ScannedQuestion[] = [];
+            for (const q of phaseNeg1Candidates) {
+                const hResult = this.tryHardcodedEngine(q, profile, learnedPatterns);
+                if (hResult === '__SKIP__') {
+                    continue;
+                } else if (hResult !== null) {
+                    mappedAnswers.push(hResult);
+                } else {
+                    phase0Candidates.push(q);
+                }
+            }
+            console.log(`  ✅ Hardcoded resolved ${phaseNeg1Candidates.length - phase0Candidates.length}/${phaseNeg1Candidates.length} questions. ${phase0Candidates.length} remaining.\n`);
+
+            // 3. Phase 0 & 1: Predefined & Learned Patterns
+            const unmappedForAI: ScannedQuestion[] = [];
+            for (const q of phase0Candidates) {
+                const internalResult = await this.tryPredefinedOrLearned(q, profile);
+                if (internalResult) {
+                    mappedAnswers.push(internalResult);
+                    console.log(`  ⚡ [INTERNAL MATCH] "${q.questionText}" → "${internalResult.answer}" (source: ${internalResult.source})`);
+                } else {
+                    unmappedForAI.push(q);
+                }
+            }
+            console.log(`  ✅ Internal patterns/logic resolved ${phase0Candidates.length - unmappedForAI.length}/${phase0Candidates.length} questions. ${unmappedForAI.length} remaining.\n`);
+
+            // 4. Phase 2: AI prediction fallback on remaining unmapped questions
+            if (unmappedForAI.length > 0) {
+                console.log(`📤 Sending ${unmappedForAI.length} remaining question(s) to AI for mapping...`);
+
+                // Notify UI of AI count immediately (before calling AI)
+                window.dispatchEvent(new CustomEvent('AI_COUNT_UPDATE', {
+                    detail: { count: unmappedForAI.length }
+                }));
+
+                const aiAnswers = await this.requestAIAnswers(unmappedForAI, profile);
+
+                // Learn from each successful AI response
+                console.log(`\n📚 Learning from AI responses...`);
+                for (const question of unmappedForAI) {
+                    const answer = aiAnswers.find(a => a.questionText === question.questionText && a.fieldType === question.fieldType);
+                    if (answer) {
+                        await this.learnFromAIResponse(question, answer, profile);
+                    }
+                }
+
+                mappedAnswers.push(...aiAnswers);
+                console.log(`✅ AI fallback phase complete. Learned ${aiAnswers.length} new patterns.\n`);
+            } else {
+                console.log(`\n✨ All questions mapped without AI! No AI calls needed.\n`);
+            }
+        }
 
         // Summary breakdown
         const canonicalCount = mappedAnswers.filter(a => a.source === 'canonical').length;
@@ -414,9 +293,235 @@ export class QuestionMapper {
         console.log(`   🔍 Fuzzy Match: ${fuzzyCount}`);
         console.log(`   🤖 AI Generated: ${aiCount}\n`);
 
+        // Final fallback: Ensure all required questions have an answer (even if empty/unresolved)
+        for (const q of uniqueQuestions) {
+            const alreadyMapped = mappedAnswers.some(a => a.questionText === q.questionText && a.fieldType === q.fieldType);
+            if (!alreadyMapped && q.required) {
+                console.log(`⚠️ [REQUIRED FALLBACK] Question "${q.questionText}" is required but was not mapped. Generating default fallback.`);
+                let defaultAnswer: string | string[] = '';
+                
+                if (q.options && q.options.length > 0) {
+                    // Dropdown/Radio/Checkbox - find safest/common default option
+                    const pref = ['no', 'none', 'prefer not to say', 'decline to answer', 'decline to state', 'prefer not to disclose', 'n/a'];
+                    let foundMatch = '';
+                    for (const p of pref) {
+                        const opt = q.options.find(o => o.toLowerCase().trim() === p);
+                        if (opt) {
+                            foundMatch = opt;
+                            break;
+                        }
+                    }
+                    if (foundMatch) {
+                        defaultAnswer = foundMatch;
+                    } else {
+                        // Skip common placeholder first option if there is one
+                        const placeholders = ['--select--', '-- select --', 'select...', 'select', 'choose...', 'choose', 'none', 'n/a'];
+                        const validOptions = q.options.filter(o => !placeholders.includes(o.toLowerCase().trim()));
+                        defaultAnswer = validOptions.length > 0 ? validOptions[0] : q.options[0];
+                    }
+                } else {
+                    // Free text field
+                    const qLower = q.questionText.toLowerCase();
+                    if (qLower.includes('year') || qLower.includes('month') || qLower.includes('how many') || qLower.includes('how long')) {
+                        defaultAnswer = '0';
+                    } else if (qLower.includes('experience') || qLower.includes('skill') || qLower.includes('framework') || qLower.includes('language') || qLower.includes('tool') || qLower.includes('proficien')) {
+                        defaultAnswer = 'No';
+                    } else {
+                        defaultAnswer = 'No';
+                    }
+                }
+
+                mappedAnswers.push({
+                    selector: q.selector,
+                    questionText: q.questionText,
+                    answer: defaultAnswer,
+                    source: 'hardcoded' as const,
+                    confidence: 0.70,
+                    required: q.required,
+                    fieldType: q.fieldType,
+                    options: q.options || undefined
+                });
+                console.log(`   👉 Mapped to default fallback: "${defaultAnswer}"`);
+            }
+        }
+
         AnalyticsTracker.getInstance().endMapping(mappedAnswers);
 
         return mappedAnswers;
+    }
+
+    /**
+     * Try mapping a question using custom manual overrides (Phase -2)
+     */
+    private tryCustomOverride(q: ScannedQuestion, profile: any): MappedAnswer | null {
+        if (profile.customAnswers && profile.customAnswers[q.questionText]) {
+            const customAnswer = profile.customAnswers[q.questionText];
+            console.log(`  ⭐ [CUSTOM] "${q.questionText}" → "${customAnswer}"`);
+
+            // Validate against options if this is a dropdown/radio
+            let finalAnswer: string | string[] = customAnswer;
+            if (q.options && q.options.length > 0) {
+                const matched = this.matchInOptions(customAnswer as any, q.options, 1.0);
+                if (matched) {
+                    finalAnswer = matched.answer;
+                    console.log(`     ✓ Validated against options: "${finalAnswer}"`);
+                }
+            }
+
+            // RESOLVE FILE URLS
+            let fileName: string | undefined = undefined;
+            if (q.fieldType === FieldType.FILE_UPLOAD) {
+                const resolved = this.resolveFileAnswer(finalAnswer, q, profile);
+                finalAnswer = resolved.answer;
+                fileName = resolved.fileName;
+            }
+
+            return {
+                selector: q.selector,
+                questionText: q.questionText,
+                answer: finalAnswer,
+                source: 'hardcoded_override',
+                confidence: 1.0,
+                required: q.required,
+                fieldType: q.fieldType,
+                options: q.options || undefined,
+                fileName
+            };
+        }
+        return null;
+    }
+
+    /**
+     * Try mapping a question using hardcoded engine rules (Phase -1)
+     */
+    private tryHardcodedEngine(q: ScannedQuestion, profile: any, learnedPatterns: any[]): MappedAnswer | '__SKIP__' | null {
+        const hResult = resolveHardcoded(q.questionText, q.fieldType, q.options || undefined, profile, learnedPatterns);
+
+        if (hResult !== null) {
+            // BLACKLIST: Skip placeholder/fake UI questions entirely
+            if (hResult.answer === '__SKIP__') {
+                console.log(`  🚫 [BLACKLIST] Skipping placeholder question: "${q.questionText}"`);
+                return '__SKIP__';
+            }
+
+            let validatedAnswer = hResult.answer;
+
+            // VALIDATION: If it's a dropdown/select, ensure the answer is actually in the options
+            if (q.options && q.options.length > 0 && q.fieldType !== FieldType.FILE_UPLOAD) {
+                const optionMatch = this.matchInOptions(hResult.answer, q.options, 1.0);
+                if (optionMatch) {
+                    validatedAnswer = optionMatch.answer;
+                } else if (q.fieldType === FieldType.CHECKBOX || q.fieldType === FieldType.RADIO_GROUP) {
+                    // For checkboxes/radios, allow "Yes/No" or "True/False" to pass through even if label doesn't match
+                    const lowerVal = String(hResult.answer).toLowerCase();
+                    if (['yes', 'no', 'true', 'false'].includes(lowerVal)) {
+                        console.log(`  ✅ [CHECKBOX/RADIO] Accepting boolean intent "${hResult.answer}" for field "${q.questionText}"`);
+                        validatedAnswer = hResult.answer;
+                    } else {
+                        console.log(`  ⚠️ Phase -1 [HARDCODED]: "${q.questionText}" → "${hResult.answer}" not in options, falling through`);
+                        return null;
+                    }
+                } else {
+                    console.log(`  ⚠️ Phase -1 [HARDCODED]: "${q.questionText}" → "${hResult.answer}" not in options, falling through`);
+                    return null;
+                }
+            }
+
+            // RESOLVE FILE URLS
+            let fileName: string | undefined = hResult.answer && typeof hResult.answer === 'object' ? (hResult as any).fileName : undefined;
+            if (q.fieldType === FieldType.FILE_UPLOAD) {
+                const resolved = this.resolveFileAnswer(validatedAnswer, q, profile);
+                validatedAnswer = resolved.answer;
+                fileName = resolved.fileName;
+            }
+
+            return {
+                selector: q.selector,
+                questionText: q.questionText,
+                answer: validatedAnswer,
+                source: 'hardcoded',
+                confidence: hResult.confidence,
+                required: q.required,
+                fieldType: q.fieldType,
+                options: q.options || undefined,
+                canonicalKey: hResult.intent,
+                fileName
+            };
+        }
+        return null;
+    }
+
+    /**
+     * Try mapping a question using Predefined Patterns (Phase 0) or Learned/Fuzzy matching (Phase 1)
+     */
+    private async tryPredefinedOrLearned(q: ScannedQuestion, profile: any): Promise<MappedAnswer | null> {
+        // Phase 0: Predefined patterns
+        const match = findQuestionIntent(q.questionText, q.fieldType);
+        if (match) {
+            const intent = match.intent;
+            let value = getValueByIntent(profile, intent);
+
+            if (value !== null && value !== undefined && value !== '') {
+                let fileName: string | undefined = undefined;
+
+                // SPECIAL HANDLING FOR FILE OBJECTS
+                if (value && typeof value === 'object' && (value.base64 || value.url)) {
+                    fileName = value.fileName;
+                    const base64Data = value.base64 || '';
+                    value = base64Data.startsWith('data:') ? base64Data : `data:application/pdf;base64,${base64Data}`;
+                } else if (typeof value === 'boolean') {
+                    value = this.booleanToYesNo(value, q.options || undefined);
+                } else {
+                    value = String(value);
+                }
+
+                // For dropdown/radio/checkbox fields, validate against available options
+                let validOption = true;
+                if (q.fieldType !== FieldType.FILE_UPLOAD && q.options && q.options.length > 0) {
+                    const optionMatch = this.matchInOptions(value, q.options, 1.0);
+                    if (optionMatch) {
+                        value = optionMatch.answer; // Use exact option text
+                    } else {
+                        console.log(`  ⚠️ Predefined Patterns fallback validation: "${q.questionText}" → "${value}" not in options`);
+                        validOption = false;
+                    }
+                }
+
+                if (validOption) {
+                    const resolvedFile = this.resolveFileAnswer(value, q, profile);
+                    return {
+                        selector: q.selector,
+                        questionText: q.questionText,
+                        answer: resolvedFile.answer,
+                        source: 'canonical' as const,
+                        confidence: 1.0,
+                        required: q.required,
+                        fieldType: q.fieldType,
+                        options: q.options || undefined,
+                        canonicalKey: intent,
+                        fileName: resolvedFile.fileName || fileName
+                    };
+                }
+            }
+        }
+
+        // Phase 1: Canonical, learned, fuzzy matching
+        const result = await this.tryMapping(q, profile);
+        if (result && result.confidence >= 0.6) {
+            return {
+                selector: q.selector,
+                questionText: q.questionText,
+                answer: result.answer,
+                source: result.source as any,
+                confidence: result.confidence,
+                required: q.required,
+                fieldType: q.fieldType,
+                options: q.options || undefined,
+                fileName: result.fileName
+            };
+        }
+
+        return null;
     }
 
     /**
@@ -1065,9 +1170,18 @@ export class QuestionMapper {
         if (exp) {
             // Company name — only in experience context (check for experience/employment-related keywords in question
             // or check that question doesn't also match education context keywords)
-            if ((qLower === 'company' || qLower === 'company name' || qLower === 'employer' ||
-                qLower.includes('employer name') || qLower.includes('organization name') ||
-                (qLower.includes('company') && !qLower.includes('school') && !qLower.includes('university'))) && exp.company) {
+            const isDisqualificationQuestion = qLower.includes('terminated') ||
+                qLower.includes('misconduct') ||
+                qLower.includes('convicted') ||
+                qLower.includes('felony') ||
+                qLower.includes('misdemeanor') ||
+                qLower.includes('discharge') ||
+                qLower.includes('fired');
+
+            if (!isDisqualificationQuestion &&
+                (qLower === 'company' || qLower === 'company name' || qLower === 'employer' ||
+                    qLower.includes('employer name') || qLower.includes('organization name') ||
+                    (qLower.includes('company') && !qLower.includes('school') && !qLower.includes('university'))) && exp.company) {
                 return validateWithOptions(exp.company);
             }
 
@@ -1560,146 +1674,111 @@ export class QuestionMapper {
 
 
     private async requestAIAnswers(questions: ScannedQuestion[], profile: any): Promise<MappedAnswer[]> {
-        console.log(`⚡ Processing ${questions.length} AI question(s) with concurrency limit...`);
+        console.log(`⚡ Processing ${questions.length} AI question(s) in a single batch request...`);
         const startTime = Date.now();
-        console.log(`⏱️  AI request started at ${new Date().toLocaleTimeString()}\n`);
+        console.log(`⏱️  AI batch request started at ${new Date().toLocaleTimeString()}\n`);
 
-        let cacheHits = 0;
-        let cacheMisses = 0;
+        if (questions.length === 0) {
+            return [];
+        }
 
+<<<<<<< HEAD
         const CONCURRENCY_LIMIT = 6;
+=======
+        const batchQuestions = questions.map((q, index) => ({
+            id: index.toString(),
+            question: q.questionText,
+            options: (q.options && q.options.length <= 20000) ? q.options : [],
+            fieldType: q.fieldType,
+            required: q.required
+        }));
+
+        const requestPayload = {
+            questions: batchQuestions,
+            userProfile: profile
+        };
+
+        console.log(`      [AI Batch Request Payload]:`, requestPayload);
+        console.log(`      [UserProfile Details Sent to AI]:`, JSON.stringify(profile, null, 2));
+
+        let batchResponse: any = null;
+>>>>>>> nikhil_main_dev_branch
         const MAX_RETRIES = 3;
         const BASE_DELAY_MS = 1000;
 
-        const processQuestion = async (q: ScannedQuestion, index: number): Promise<MappedAnswer | null> => {
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
-                // 💾 PHASE 1: Check cache first
-                const cached = await getCachedResponse(q.questionText, q.fieldType, q.options);
-                if (cached) {
-                    cacheHits++;
-                    console.log(`   💾 [${index + 1}/${questions.length}] Cache HIT: "${q.questionText}" (${Math.round((Date.now() - cached.timestamp) / (60 * 1000))} min old)`);
-
+                // Dispatch progress event as processing for all questions
+                questions.forEach((q, index) => {
                     window.dispatchEvent(new CustomEvent('AI_PROGRESS', {
                         detail: {
                             current: index + 1,
                             total: questions.length,
                             question: q.questionText,
-                            status: 'complete',
-                            answer: cached.answer,
-                            cached: true
+                            status: 'processing'
                         }
                     }));
+                });
 
-                    return {
-                        selector: q.selector,
-                        questionText: q.questionText,
-                        answer: cached.answer,
-                        source: 'cache' as const,
-                        confidence: cached.confidence,
-                        required: q.required,
-                        fieldType: q.fieldType,
-                        options: q.options || undefined,
-                        canonicalKey: cached.intent
-                    } as MappedAnswer;
+                const response = await askAIBatch(requestPayload);
+                if (!response || !response.results || response.results.length === 0) {
+                    throw new Error(`AI returned empty batch results (attempt ${attempt})`);
                 }
+                batchResponse = response;
+                break;
+            } catch (error: any) {
+                const isRetryable =
+                    error?.message?.includes('502') ||
+                    error?.message?.includes('503') ||
+                    error?.message?.includes('429') ||
+                    error?.message?.includes('empty batch') ||
+                    error?.status === 502 ||
+                    error?.status === 503 ||
+                    error?.status === 429;
 
-                // 📡 PHASE 2: Cache miss - call AI (with retry)
-                cacheMisses++;
-
-                window.dispatchEvent(new CustomEvent('AI_PROGRESS', {
-                    detail: {
-                        current: index + 1,
-                        total: questions.length,
-                        question: q.questionText,
-                        status: 'processing'
+                if (isRetryable && attempt < MAX_RETRIES) {
+                    const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+                    console.warn(`   🔄 Batch AI Attempt ${attempt}/${MAX_RETRIES} failed (${error.message}). Retrying in ${delay}ms...`);
+                    await new Promise(res => setTimeout(res, delay));
+                } else {
+                    if (attempt === MAX_RETRIES) {
+                        console.error(`   ❌ All ${MAX_RETRIES} Batch AI attempts failed.`);
                     }
-                }));
+                    throw error;
+                }
+            }
+        }
 
-                console.log(`   📤 [${index + 1}/${questions.length}] Cache MISS - Asking AI: "${q.questionText}"`);
-                if (q.options && q.options.length > 0 && q.options.length <= 100) {
-                    console.log(`      Options provided: [${q.options.slice(0, 3).join(', ')}${q.options.length > 3 ? '...' : ''}]`);
+        console.log(`      [AI Batch Response Raw]:`, batchResponse);
+
+        const aiAnswers: MappedAnswer[] = [];
+
+        // Loop through results and validate
+        if (batchResponse && batchResponse.results) {
+            batchResponse.results.forEach((item: any) => {
+                const index = parseInt(item.id, 10);
+                if (isNaN(index) || index < 0 || index >= questions.length) {
+                    console.warn(`   ⚠️ AI returned invalid result ID: ${item.id}`);
+                    return;
                 }
 
-                // Retry loop
-                let aiResponse: any = null;
-                for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-                    try {
-                        const response = await askAI({
-                            question: q.questionText,
-                            fieldType: q.fieldType,
-                            options: (q.options && q.options.length <= 100) ? q.options : [],
-                            userProfile: profile
-                        });
-
-                        // Treat empty/null answer as a retryable failure
-                        if (!response?.answer) {
-                            throw new Error(`AI returned empty answer (attempt ${attempt})`);
-                        }
-
-                        aiResponse = response;
-                        break; // Success - exit retry loop
-
-                    } catch (error: any) {
-                        const isRetryable =
-                            error?.message?.includes('502') ||
-                            error?.message?.includes('503') ||
-                            error?.message?.includes('429') ||
-                            error?.message?.includes('empty answer') ||
-                            error?.status === 502 ||
-                            error?.status === 503 ||
-                            error?.status === 429;
-
-                        if (isRetryable && attempt < MAX_RETRIES) {
-                            const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1); // 1s, 2s, 4s
-                            console.warn(`   🔄 [${index + 1}/${questions.length}] Attempt ${attempt}/${MAX_RETRIES} failed for "${q.questionText}" (${error.message}). Retrying in ${delay}ms...`);
-                            await new Promise(res => setTimeout(res, delay));
-                        } else {
-                            if (attempt === MAX_RETRIES) {
-                                console.error(`   ❌ [${index + 1}/${questions.length}] All ${MAX_RETRIES} attempts failed for "${q.questionText}"`);
-                            }
-                            throw error;
-                        }
-                    }
-                }
-
-                // If we get here and still no aiResponse, bail out
-                if (!aiResponse?.answer) {
-                    console.warn(`   ⚠️ [${index + 1}/${questions.length}] AI returned no answer for: "${q.questionText}"`);
-
-                    window.dispatchEvent(new CustomEvent('AI_PROGRESS', {
-                        detail: {
-                            current: index + 1,
-                            total: questions.length,
-                            question: q.questionText,
-                            status: 'failed'
-                        }
-                    }));
-
-                    return null;
-                }
-
-                const intentInfo = aiResponse.intent
-                    ? `, intent: ${aiResponse.intent}${aiResponse.isNewIntent ? ' (NEW)' : ''}`
-                    : '';
-                console.log(`   📥 [${index + 1}/${questions.length}] AI Response: "${aiResponse.answer}" (${(aiResponse.confidence * 100).toFixed(0)}% confidence${intentInfo})`);
+                const q = questions[index];
+                let finalAnswer = item.answer;
 
                 // CRITICAL: Validate AI answer against available options
-                let finalAnswer = aiResponse.answer;
                 if (q.options && q.options.length > 0) {
                     const exactMatch = q.options.find(opt =>
-                        opt.toLowerCase().trim() === aiResponse.answer.toLowerCase().trim()
+                        opt.toLowerCase().trim() === item.answer.toLowerCase().trim()
                     );
 
                     if (!exactMatch) {
-                        console.warn(`      ⚠️ AI answer "${aiResponse.answer}" not in options, trying fuzzy match...`);
-
-                        const fuzzyMatch = this.fuzzyMatchOption(aiResponse.answer, q.options);
+                        console.warn(`      ⚠️ AI answer "${item.answer}" for "${q.questionText}" not in options, trying fuzzy match...`);
+                        const fuzzyMatch = this.fuzzyMatchOption(item.answer, q.options);
                         if (fuzzyMatch) {
-                            console.log(`      ✅ Fuzzy matched "${aiResponse.answer}" → "${fuzzyMatch}"`);
+                            console.log(`      ✅ Fuzzy matched "${item.answer}" → "${fuzzyMatch}"`);
                             finalAnswer = fuzzyMatch;
                         } else {
-                            console.error(`      ❌ AI answer "${aiResponse.answer}" not found in options for "${q.questionText}"`);
-
+                            console.error(`      ❌ AI answer "${item.answer}" not found in options for "${q.questionText}"`);
                             window.dispatchEvent(new CustomEvent('AI_PROGRESS', {
                                 detail: {
                                     current: index + 1,
@@ -1708,24 +1787,33 @@ export class QuestionMapper {
                                     status: 'failed'
                                 }
                             }));
-
-                            return null;
+                            return;
                         }
                     } else {
                         finalAnswer = exactMatch;
-                        console.log(`      ✓ Exact match found in options`);
+                        console.log(`      ✓ Exact match found in options for "${q.questionText}"`);
                     }
                 }
 
-                // 💾 PHASE 3: Store in cache for future use
-                await setCachedResponse(
+                console.log(`      [AI Final Answer for DOM - "${q.questionText}"]: "${finalAnswer}"`);
+
+                // RESOLVE FILE URLS
+                let fileName: string | undefined = undefined;
+                if (q.fieldType === FieldType.FILE_UPLOAD) {
+                    const resolved = this.resolveFileAnswer(finalAnswer, q, profile);
+                    finalAnswer = resolved.answer;
+                    fileName = resolved.fileName;
+                }
+
+                // Store in cache for debug/recovery
+                setCachedResponse(
                     q.questionText,
                     q.fieldType,
                     q.options,
                     {
                         answer: finalAnswer,
-                        confidence: aiResponse.confidence || 0.8,
-                        intent: aiResponse.intent
+                        confidence: item.confidence || 0.8,
+                        intent: item.intent
                     }
                 );
 
@@ -1739,69 +1827,25 @@ export class QuestionMapper {
                     }
                 }));
 
-                return {
+                aiAnswers.push({
                     selector: q.selector,
                     questionText: q.questionText,
                     answer: finalAnswer,
                     source: 'AI' as const,
-                    confidence: aiResponse.confidence || 0.8,
+                    confidence: item.confidence || 0.8,
                     required: q.required,
                     fieldType: q.fieldType,
                     options: q.options || undefined,
-                    canonicalKey: aiResponse.intent,
-                    ...(aiResponse.isNewIntent && {
-                        isNewIntent: aiResponse.isNewIntent,
-                        suggestedIntentName: aiResponse.suggestedIntentName
-                    })
-                } as MappedAnswer;
-
-            } catch (error) {
-                console.error(`   ❌ [${index + 1}/${questions.length}] AI error for "${q.questionText}":`, error);
-
-                window.dispatchEvent(new CustomEvent('AI_PROGRESS', {
-                    detail: {
-                        current: index + 1,
-                        total: questions.length,
-                        question: q.questionText,
-                        status: 'failed'
-                    }
-                }));
-
-                return null;
-            }
-        };
-
-        // Process in batches to limit concurrency and avoid 502s
-        const aiAnswers: MappedAnswer[] = [];
-
-        for (let i = 0; i < questions.length; i += CONCURRENCY_LIMIT) {
-            const batch = questions.slice(i, i + CONCURRENCY_LIMIT);
-            const batchNum = Math.floor(i / CONCURRENCY_LIMIT) + 1;
-            const totalBatches = Math.ceil(questions.length / CONCURRENCY_LIMIT);
-
-            console.log(`   🔄 Batch ${batchNum}/${totalBatches}: processing ${batch.length} question(s)...`);
-
-            const batchResults = await Promise.all(
-                batch.map((q, batchIndex) => processQuestion(q, i + batchIndex))
-            );
-
-            for (const result of batchResults) {
-                if (result) aiAnswers.push(result);
-            }
-
-            // Small pause between batches to avoid hammering the API
-            if (i + CONCURRENCY_LIMIT < questions.length) {
-                await new Promise(res => setTimeout(res, 500));
-            }
+                    canonicalKey: item.intent,
+                    fileName
+                } as MappedAnswer);
+            });
         }
 
         const endTime = Date.now();
         const duration = ((endTime - startTime) / 1000).toFixed(1);
 
-        console.log(`\n⚡ AI processing complete in ${duration}s`);
-        console.log(`📊 Cache Statistics:`);
-        console.log(`   💾 Cache Hits: ${cacheHits}/${questions.length} (${((cacheHits / questions.length) * 100).toFixed(0)}%)`);
-        console.log(`   📡 API Calls: ${cacheMisses}/${questions.length} (${((cacheMisses / questions.length) * 100).toFixed(0)}%)`);
+        console.log(`\n⚡ AI batch processing complete in ${duration}s`);
         console.log(`✅ Successfully answered: ${aiAnswers.length}/${questions.length} questions`);
         if (aiAnswers.length < questions.length) {
             console.log(`⚠️  Failed to answer: ${questions.length - aiAnswers.length} question(s)`);
