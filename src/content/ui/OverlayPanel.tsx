@@ -2724,7 +2724,7 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                         </div>
 
                         <div className="panel-footer" style={{ textAlign: 'center', fontSize: '10px', color: '#999', marginTop: '20px', paddingBottom: '10px' }}>
-                            Job Application Autofill v1.3.7
+                            Job Application Autofill v1.3.8
                         </div>
                     </div>
                 )
