@@ -947,6 +947,73 @@ const STYLES = `
   display: inline-block;
   vertical-align: middle;
 }
+
+/* AI Loading State Styles */
+.ai-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: #fdfdfd;
+  border-radius: 8px;
+  text-align: center;
+  gap: 16px;
+  animation: fadeIn 0.3s ease-out;
+  margin: 16px;
+  border: 1px solid #eee;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.ai-loading-spinner {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-loading-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #00d084;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.ai-loading-brain {
+  font-size: 28px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.ai-loading-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+}
+
+.ai-loading-subtitle {
+  font-size: 12px;
+  color: #777;
+}
+
+.ai-payload-viewer {
+  margin: 16px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.7; }
+}
 `;
 
 interface OverlayPanelProps {
@@ -997,7 +1064,8 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
     const [isDragging, setIsDragging] = useState(false);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [selectedSection, setSelectedSection] = useState<QuestionSection | "all" | "missed">("all");
-    const [viewMode, setViewMode] = useState<"fields" | "resume">("fields");
+    const [viewMode, setViewMode] = useState<"fields" | "resume" | "payload">("fields");
+    const [aiPayload, setAiPayload] = useState<any>(null);
     const [resumeText, setResumeText] = useState<string>("");
     const [fields, setFields] = useState<DetectedField[]>(initialFields);
     const [mappingPriority, setMappingPriority] = useState<'AI_FIRST' | 'INTERNAL_FIRST'>('AI_FIRST');
@@ -1038,10 +1106,7 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
     const [fillProgress, setFillProgress] = useState<{ current: number; total: number } | null>(null);
     const [aiStatus, setAIStatus] = useState<string>("");
     const [aiLog, setAILog] = useState<{ question: string; answer: string; cached?: boolean }[]>([]);
-    const [statsSummary, setStatsSummary] = useState<{
-        users: { total: number; recent_24h: number };
-        feedback: { total: number; recent_24h: number };
-    } | null>(null);
+
     const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
     const [pageType, setPageType] = useState<'single' | 'multi' | null>(null);
     const [navigationButtons, setNavigationButtons] = useState<string[]>([]);
@@ -1052,7 +1117,6 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
     const [totalAttempted, setTotalAttempted] = useState<number>(0);
     const [feedbackTimer, setFeedbackTimer] = useState<number>(600);
     const [isFeedbackVisible, setIsFeedbackVisible] = useState(false);
-    const [showFeedbackIntimation, setShowFeedbackIntimation] = useState(false);
     const [feedbackSubmittedMessage, setFeedbackSubmittedMessage] = useState<string | null>(null);
     const feedbackTimerRef = useRef<any>(null);
 
@@ -1063,8 +1127,6 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
         // Record the message before hiding the intimation but don't hide the overall visibility yet
         // so we can show the "Thanks" message in the panel
         setFeedbackSubmittedMessage(isAuto ? "Data submitted automatically" : "Thanks for submit");
-
-        setShowFeedbackIntimation(false); // Hide the popup immediately
 
         const tracker = AnalyticsTracker.getInstance();
         const finalSuccess = overrideSuccess !== undefined ? overrideSuccess : manualSuccess;
@@ -1176,23 +1238,7 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
         });
     };
 
-    // Fetch stats summary on mount
-    useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const data = await proxyFetch(`${CONFIG.API.STATS_URL}/api/stats/summary`);
-                if (data.success) {
-                    setStatsSummary({
-                        users: data.users,
-                        feedback: data.feedback
-                    });
-                }
-            } catch (err) {
-                console.warn("[OverlayPanel] Failed to fetch stats summary:", err);
-            }
-        };
-        fetchStats();
-    }, []);
+
 
     // Detect if current URL is a Workday application
     const [isWorkdayUrl, setIsWorkdayUrl] = useState(window.location.href.toLowerCase().includes('workday'));
@@ -1296,6 +1342,60 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
 
         return () => clearInterval(intervalId);
     }, []);
+
+    // Listen for custom event to toggle viewState (triggered via extension toolbar icon click)
+    useEffect(() => {
+        const handleTogglePanel = () => {
+            setViewState(prev => prev === "ICON" ? "MENU" : "ICON");
+        };
+
+        window.addEventListener('TOGGLE_AUTOFILL_PANEL', handleTogglePanel);
+        return () => {
+            window.removeEventListener('TOGGLE_AUTOFILL_PANEL', handleTogglePanel);
+        };
+    }, []);
+
+    // Compile AI Payload preview
+    useEffect(() => {
+        const updatePayload = async () => {
+            try {
+                const profile = await loadProfile();
+                if (profile) {
+                    const aiQuestions = fields.map((f, i) => ({
+                        id: f.selector || `q_${i}`,
+                        question: f.questionText,
+                        options: f.options,
+                        fieldType: f.fieldType,
+                        required: f.isRequired
+                    }));
+
+                    setAiPayload({
+                        questions: aiQuestions,
+                        userProfile: {
+                            personal: profile.personal,
+                            education: profile.education,
+                            experience: profile.experience,
+                            skills: profile.skills,
+                            workAuthorization: profile.workAuthorization,
+                            eeo: profile.eeo,
+                            preferences: profile.preferences,
+                            customAnswers: profile.customAnswers,
+                            metadata: {
+                                hasResume: !!profile.metadata?.resumeRawText,
+                                resumeLength: profile.metadata?.resumeRawText?.length || 0
+                            }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.warn("[OverlayPanel] Failed to update AI payload preview:", err);
+            }
+        };
+
+        if (viewMode === "payload") {
+            updatePayload();
+        }
+    }, [fields, viewMode]);
 
     // Adjust position when view state changes to keep panel within viewport
     useEffect(() => {
@@ -1715,7 +1815,6 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                     console.log("[Ext] 🤖 Showing completion notification & feedback prompt...");
                     setFeedbackTimer(60); // 60s auto-submit timer
                     setIsFeedbackVisible(true);
-                    setShowFeedbackIntimation(true);
                 }, 100);
             } catch (e) {
                 console.error('[Ext] Autofill execution error:', e);
@@ -1968,13 +2067,8 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                             <h3 style={{ margin: 0, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <img src={chrome.runtime.getURL('assets/icon256.png')} alt="logo" style={{ width: '18px', height: '18px' }} />
                                 Autofill Assistant
+                                <span className="version-tag-menu">v{version}</span>
                             </h3>
-                            {statsSummary && (
-                                <div style={{ fontSize: '9px', opacity: 0.9, marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '1px', textAlign: 'center' }}>
-                                    <span>Total users in the last 24 hours: {statsSummary.users.recent_24h}</span>
-                                    <span>Total users: {statsSummary.users.total} <span className="version-tag-menu">v{version}</span></span>
-                                </div>
-                            )}
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <button className="gear-btn" onClick={() => setViewState("SETTINGS")} title="Settings">⚙️</button>
@@ -2205,14 +2299,6 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                                 Autofill Assistant
                                 <span className="version-tag">v{version}</span>
                             </h3>
-                            {statsSummary && (
-                                <div style={{ fontSize: '9px', opacity: 0.9, marginTop: '1px', display: 'flex', gap: '5px' }}>
-                                    <span>👥 {statsSummary.users.total} Users</span>
-                                    <span>🧾 {statsSummary.feedback.total} Feedbacks</span>
-                                    <span>💬 {statsSummary.feedback.recent_24h} Feedback</span>
-
-                                </div>
-                            )}
                         </div>
                         <div className="header-actions">
                             <button
@@ -2247,6 +2333,12 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                         >
                             Detection List
                         </button>
+                        <button
+                            className={viewMode === "payload" ? "active" : ""}
+                            onClick={() => setViewMode("payload")}
+                        >
+                            AI Payload
+                        </button>
                         {/* <button
                             className={viewMode === "resume" ? "active" : ""}
                             onClick={() => setViewMode("resume")}
@@ -2256,7 +2348,29 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                     </div>
 
                     <div className="autofill-content">
-                        {viewMode === "fields" ? (
+                        {isMapping ? (
+                            <div className="ai-loading-container">
+                                <div className="ai-loading-spinner">
+                                    <div className="ai-loading-ring"></div>
+                                    <span className="ai-loading-brain">🧠</span>
+                                </div>
+                                <div className="ai-loading-title">Asking AI...</div>
+                                <div className="ai-loading-subtitle">Answering questions and mapping fields</div>
+                            </div>
+                        ) : isFilling ? (
+                            <div className="ai-loading-container">
+                                <div className="ai-loading-spinner">
+                                    <div className="ai-loading-ring" style={{ borderTopColor: '#ff922b' }}></div>
+                                    <span className="ai-loading-brain">⚡</span>
+                                </div>
+                                <div className="ai-loading-title">Wait, it's filling the data...</div>
+                                {fillProgress && (
+                                    <div className="ai-loading-subtitle" style={{ fontWeight: '600', color: '#ff922b' }}>
+                                        Filled {fillProgress.current} of {fillProgress.total} fields
+                                    </div>
+                                )}
+                            </div>
+                        ) : viewMode === "fields" ? (
                             <>
                                 {/* Stats Section */}
                                 {isFeedbackVisible && (
@@ -2335,7 +2449,6 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                                     </div>
                                 )}
 
-
                                 {/* Performance Tracker */}
                                 {performanceMetrics.scanStarted && (
                                     <div className="performance-tracker">
@@ -2374,19 +2487,6 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                                             {aiStatus && (
                                                 <div className="perf-item" style={{ marginLeft: '20px', fontSize: '10px', color: '#00d084' }}>
                                                     <span className="perf-label">│ {aiStatus}</span>
-                                                </div>
-                                            )}
-                                            {/* AI Q&A Log */}
-                                            {aiLog.length > 0 && (
-                                                <div style={{ marginLeft: '20px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                    {aiLog.map((log, idx) => (
-                                                        <div key={idx} style={{ fontSize: '10px', color: '#666' }}>
-                                                            <span style={{ color: '#888', marginRight: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                {log.cached ? '💾' : '🤖'} {truncate(log.question, 15)}:
-                                                            </span>
-                                                            <span style={{ color: '#00d084', fontWeight: 'bold' }}>{truncate(log.answer, 20)}</span>
-                                                        </div>
-                                                    ))}
                                                 </div>
                                             )}
                                             {performanceMetrics.mappingCompleted && (
@@ -2480,6 +2580,15 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                                         ))}
                                 </div>
                             </>
+                        ) : viewMode === "payload" ? (
+                            <div className="ai-payload-viewer" style={{ padding: '12px', background: '#f8f9fa', borderRadius: '8px', overflow: 'auto', maxHeight: '400px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#666', textAlign: 'center' }}>
+                                    This is the exact profile & question schema sent to the AI:
+                                </div>
+                                <pre style={{ margin: 0, padding: '10px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: '#1e1e1e', color: '#d4d4d4', borderRadius: '6px', overflowX: 'auto' }}>
+                                    {aiPayload ? JSON.stringify(aiPayload, null, 2) : "Loading payload..."}
+                                </pre>
+                            </div>
                         ) : (
                             <div className="resume-viewer">
                                 <div className="resume-viewer-header">
@@ -2524,64 +2633,7 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                         </div>
                     )}
 
-                    {(showFeedbackIntimation && isFeedbackVisible) && (
-                        <div className="completion-backdrop">
-                            <div className="completion-notification" style={{ maxWidth: '300px' }} onClick={e => e.stopPropagation()}>
-                                <div className="completion-header" style={{ background: '#f8f9fa', color: '#333', borderBottom: '1px solid #eee' }}>📊 Feedback Required</div>
-                                <div className="feedback-container" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    <div className="feedback-message" style={{ fontSize: '13px', lineHeight: '1.5', color: '#666', textAlign: 'center' }}>
-                                        Application filled! Please check the application and enter how many are filled and how many failed in the side panel. Your feedback is very important.
-                                    </div>
 
-                                    <button className="feedback-submit-btn" onClick={() => {
-                                        setShowFeedbackIntimation(false);
-                                        setViewState("DETAILS");
-                                    }} style={{ background: '#212529', color: 'white', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}>
-                                        Go to Panel
-                                    </button>
-
-                                    <div className="feedback-timer" style={{ fontSize: '11px', color: '#999', textAlign: 'center' }}>
-                                        Auto-syncing in <span style={{ color: '#ff3b30', fontWeight: '600' }}>{feedbackTimer}s</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        // ) : completionResult && !isFeedbackVisible && (
-                        //         <div className="completion-notification" onClick={e => e.stopPropagation()}>
-                        //             <div className="completion-header">🎉 Analysis Complete</div>
-                        //             <div className="completion-stats">
-                        //                 <div className="stat-row success">
-                        //                     <span>Fields Succeeded</span>
-                        //                     <span>{completionResult.successes}</span>
-                        //                 </div>
-                        //                 <div className="stat-row missed">
-                        //                     <span>Fields Missed</span>
-                        //                     <span>{completionResult.failures}</span>
-                        //                 </div>
-                        //             </div>
-
-                        //             {completionResult.missedQuestions.length > 0 && (
-                        //                 <div className="missed-questions-list">
-                        //                     <div style={{ fontWeight: '600', marginBottom: '4px', borderBottom: '1px solid #eee', paddingBottom: '2px' }}>
-                        //                         Missed Questions:
-                        //                     </div>
-                        //                     {completionResult.missedQuestions.map((q: string, i: number) => (
-                        //                         <div key={i} className="missed-question-item" title={q}>
-                        //                             • {q}
-                        //                         </div>
-                        //                     ))}
-                        //                 </div>
-                        //             )}
-
-                        //             <button
-                        //                 className="close-notification-btn"
-                        //                 onClick={() => setCompletionResult(null)}
-                        //             >
-                        //                 Got it!
-                        //             </button>
-                        //         </div>
-                        //     )}
-                    )}
                 </div>
             )}
 
@@ -2724,7 +2776,7 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                         </div>
 
                         <div className="panel-footer" style={{ textAlign: 'center', fontSize: '10px', color: '#999', marginTop: '20px', paddingBottom: '10px' }}>
-                            Job Application Autofill v1.3.8
+                            Job Application Autofill v1.3.9
                         </div>
                     </div>
                 )
@@ -3071,6 +3123,8 @@ const FieldItem: React.FC<{ field: DetectedField; onUpdate: (val: string) => voi
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(field.filledValue || "");
     const [isUploading, setIsUploading] = useState(false);
+    const [isCustomAnswer, setIsCustomAnswer] = useState(false);
+    const [customAnswerText, setCustomAnswerText] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Sync state when field prop changes (e.g. after background mapping completes)
@@ -3087,6 +3141,9 @@ const FieldItem: React.FC<{ field: DetectedField; onUpdate: (val: string) => voi
         e.stopPropagation();
 
         const isFile = field.fieldType === FieldType.FILE_UPLOAD;
+        const finalEditValue = (field.options && field.options.length > 0 && editValue === "__CUSTOM_VALUE__")
+            ? customAnswerText
+            : editValue;
 
         // 1. Update DOM element
         try {
@@ -3103,7 +3160,7 @@ const FieldItem: React.FC<{ field: DetectedField; onUpdate: (val: string) => voi
 
             const doc = isResume ? profile?.documents?.resume : profile?.documents?.coverLetter;
 
-            const result = await fillField(field, isFile ? (doc?.base64 || field.base64) : editValue, isFile ? (doc?.fileName || field.fileName) : undefined);
+            const result = await fillField(field, isFile ? (doc?.base64 || field.base64) : finalEditValue, isFile ? (doc?.fileName || field.fileName) : undefined);
             console.log(`Assistant manual fill result:`, result);
         } catch (err) {
             console.error("Failed to fill DOM element from assistant:", err);
@@ -3119,12 +3176,12 @@ const FieldItem: React.FC<{ field: DetectedField; onUpdate: (val: string) => voi
                 // We store under BOTH Question Text (for exact matching) and Intent (for cross-page consistency)
                 const customAnswers = {
                     ...currentProfile.customAnswers,
-                    [field.questionText]: editValue
+                    [field.questionText]: finalEditValue
                 };
 
                 // If we have a known intent, also store under the intent key
                 if (!isUnknown && field.canonicalKey) {
-                    customAnswers[field.canonicalKey] = editValue;
+                    customAnswers[field.canonicalKey] = finalEditValue;
                 }
 
                 let updatedProfile = { ...currentProfile, customAnswers };
@@ -3141,7 +3198,7 @@ const FieldItem: React.FC<{ field: DetectedField; onUpdate: (val: string) => voi
                     }
                     const lastKey = keys[keys.length - 1];
                     if (current && typeof current === 'object') {
-                        current[lastKey] = editValue;
+                        current[lastKey] = finalEditValue;
                     }
                 }
 
@@ -3164,8 +3221,8 @@ const FieldItem: React.FC<{ field: DetectedField; onUpdate: (val: string) => voi
                     confidence: 1.0,
                     source: 'manual' as const,
                     answerMappings: [{
-                        canonicalValue: editValue,
-                        variants: [editValue]
+                        canonicalValue: finalEditValue,
+                        variants: [finalEditValue]
                     }]
                 };
 
@@ -3200,12 +3257,19 @@ const FieldItem: React.FC<{ field: DetectedField; onUpdate: (val: string) => voi
             console.log(`[Ext] Skipping pattern learning for unknown intent: ${field.questionText}`);
         }
 
-        onUpdate(editValue);
+        onUpdate(finalEditValue);
         setIsEditing(false);
     };
 
     const handleEditClick = (e: React.MouseEvent) => {
         e.stopPropagation();
+        const hasOptions = !!(field.options && field.options.length > 0);
+        const currentVal = field.filledValue || "";
+        const isCustom = !!(hasOptions && currentVal !== "" && !field.options!.includes(String(currentVal)));
+
+        setIsCustomAnswer(isCustom);
+        setCustomAnswerText(isCustom ? String(currentVal) : "");
+        setEditValue(isCustom ? "__CUSTOM_VALUE__" : String(currentVal));
         setIsEditing(true);
     };
 
@@ -3361,16 +3425,36 @@ const FieldItem: React.FC<{ field: DetectedField; onUpdate: (val: string) => voi
                             )}
                         </div>
                     ) : (field.options && field.options.length > 0 ? (
-                        <select
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            autoFocus
-                        >
-                            <option value="">Select an option...</option>
-                            {field.options.map((opt, i) => (
-                                <option key={i} value={opt}>{opt}</option>
-                            ))}
-                        </select>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                            <select
+                                value={editValue}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setEditValue(val);
+                                    if (val === "__CUSTOM_VALUE__") {
+                                        setIsCustomAnswer(true);
+                                    } else {
+                                        setIsCustomAnswer(false);
+                                    }
+                                }}
+                                autoFocus
+                            >
+                                <option value="">Select an option...</option>
+                                {field.options.map((opt, i) => (
+                                    <option key={i} value={opt}>{opt}</option>
+                                ))}
+                                <option value="__CUSTOM_VALUE__">✏️ Write custom answer...</option>
+                            </select>
+                            {isCustomAnswer && (
+                                <input
+                                    type="text"
+                                    value={customAnswerText}
+                                    onChange={(e) => setCustomAnswerText(e.target.value)}
+                                    placeholder="Enter your custom answer..."
+                                    autoFocus
+                                />
+                            )}
+                        </div>
                     ) : (
                         <input
                             type="text"

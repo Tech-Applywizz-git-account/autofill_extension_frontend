@@ -542,7 +542,7 @@ export class FormScanner {
             let options: string[] | undefined = undefined;
             if (fieldType === FieldType.DROPDOWN_CUSTOM || fieldType === FieldType.SELECT_NATIVE) {
                 console.log(`${LOG_PREFIX} 📋 Extracting options for: "${questionText}"`);
-                options = await extractDropdownOptions(field);
+                options = await extractDropdownOptions(field, questionText);
                 if (options.length === 0) {
                     console.warn(`${LOG_PREFIX} ⚠️ No options extracted for dropdown: "${questionText}"`);
                 }

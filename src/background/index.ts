@@ -29,8 +29,14 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
 // Handle extension icon click
 chrome.action.onClicked.addListener(async (tab) => {
-    // Open settings/options page
-    chrome.runtime.openOptionsPage();
+    if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, { action: "TOGGLE_PANEL" }).catch((err) => {
+            console.log("[Background] Content script not ready on this tab, opening options page:", err.message);
+            chrome.runtime.openOptionsPage();
+        });
+    } else {
+        chrome.runtime.openOptionsPage();
+    }
 });
 
 // Handle messages from content scripts or popup

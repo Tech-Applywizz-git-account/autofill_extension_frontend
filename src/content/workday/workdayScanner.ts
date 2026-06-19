@@ -260,8 +260,7 @@ function fingerprint(el: HTMLElement, label: string): string {
 }
 
 async function isStable(el: HTMLElement): Promise<boolean> {
-    await sleep(100);
-    return document.contains(el);
+    return document.body.contains(el);
 }
 
 /* ================================================================== */
@@ -438,9 +437,9 @@ async function scanDropdownOptions(el: HTMLElement, label: string, fieldType: st
 
         console.log(`${LOG_PREFIX} 🖱️  Clicking to open dropdown: "${label}"`);
 
-        // Close any existing dropdowns
+        // Close any existing dropdowns with a very short delay
         document.body.click();
-        await sleep(CONFIG.SCAN_CLOSE_DELAY);
+        await sleep(50); // Reduced from 400ms to avoid static delay
 
         // IMPORTANT: Track existing listboxes BEFORE clicking
         const existingListboxIds = new Set(
@@ -461,57 +460,100 @@ async function scanDropdownOptions(el: HTMLElement, label: string, fieldType: st
         clickTarget.click();
         if (inputEl) {
             inputEl.focus();
-            await sleep(200);
+            await sleep(50);
             inputEl.dispatchEvent(new Event('focus', { bubbles: true }));
             inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
         }
 
-        console.log(`${LOG_PREFIX} ⏳ Waiting ${CONFIG.SCAN_OPTION_WAIT}ms for options...`);
-        await sleep(CONFIG.SCAN_OPTION_WAIT);
-
-        // Find NEW listboxes only (this is the key fix!)
-        const allListboxes = Array.from(document.querySelectorAll('[role="listbox"]'));
-        const newListboxes = allListboxes.filter(lb => {
-            const id = lb.id || lb.outerHTML.substring(0, 100);
-            if (existingListboxIds.has(id)) return false;
-            const style = window.getComputedStyle(lb);
-            const isVisible = document.hidden ? (style.display !== 'none' && style.visibility !== 'hidden') : (lb as HTMLElement).offsetParent !== null;
-            return style.display !== 'none' && style.visibility !== 'hidden' && isVisible;
-        });
-
         let listbox: Element | null = null;
+        let optionEls: Element[] = [];
+        const labelLower = label.toLowerCase();
+        const isPriorityField = labelLower.includes('university') || 
+                                labelLower.includes('school') || 
+                                labelLower.includes('country') || 
+                                labelLower.includes('state') || 
+                                labelLower.includes('location') || 
+                                labelLower.includes('college') ||
+                                labelLower.includes('degree') ||
+                                labelLower.includes('discipline') ||
+                                labelLower.includes('major') ||
+                                labelLower.includes('institution') ||
+                                labelLower.includes('province') ||
+                                labelLower.includes('field of study');
 
-        // Find closest listbox to the clicked element
-        if (newListboxes.length >= 1) {
-            const refRect = el.getBoundingClientRect();
-            let bestDist = Infinity;
-            for (const lb of newListboxes) {
-                const lbRect = lb.getBoundingClientRect();
-                const dist = Math.abs(lbRect.top - refRect.bottom) + Math.abs(lbRect.left - refRect.left);
-                if (dist < bestDist) {
-                    bestDist = dist;
-                    listbox = lb;
+        // Allow up to 4000ms for priority/dynamic dropdowns (universities, countries), and 300ms for simple ones
+        const maxPollTime = isPriorityField ? 4000 : 300;
+        const pollInterval = 50;
+        const startTime = Date.now();
+
+        console.log(`${LOG_PREFIX} ⏳ Polling up to ${maxPollTime}ms for options (Priority field: ${isPriorityField})...`);
+
+        while (Date.now() - startTime < maxPollTime) {
+            // Find NEW listboxes only
+            const allListboxes = Array.from(document.querySelectorAll('[role="listbox"]'));
+            const newListboxes = allListboxes.filter(lb => {
+                const id = lb.id || lb.outerHTML.substring(0, 100);
+                if (existingListboxIds.has(id)) return false;
+                const style = window.getComputedStyle(lb);
+                const isVisible = document.hidden ? (style.display !== 'none' && style.visibility !== 'hidden') : (lb as HTMLElement).offsetParent !== null;
+                return style.display !== 'none' && style.visibility !== 'hidden' && isVisible;
+            });
+
+            if (newListboxes.length >= 1) {
+                const refRect = el.getBoundingClientRect();
+                let bestDist = Infinity;
+                for (const lb of newListboxes) {
+                    const lbRect = lb.getBoundingClientRect();
+                    const dist = Math.abs(lbRect.top - refRect.bottom) + Math.abs(lbRect.left - refRect.left);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        listbox = lb;
+                    }
                 }
             }
+
+            if (!listbox) {
+                listbox = document.querySelector(
+                    '[role="listbox"]:not([style*="display: none"]), ' +
+                    '[role="menu"]:not([style*="display: none"]), ' +
+                    '.wd-popup:not([style*="display: none"]), ' +
+                    '.wd-popup-content:not([style*="display: none"])'
+                );
+            }
+
+            // Early exit if no listbox/popup appears within 400ms
+            if (!listbox && (Date.now() - startTime > 400)) {
+                console.log(`${LOG_PREFIX} ⏱️ No listbox detected within 400ms. Breaking early.`);
+                break;
+            }
+
+            if (listbox) {
+                optionEls = [
+                    ...Array.from(listbox.querySelectorAll('[role="option"]')),
+                    ...Array.from(listbox.querySelectorAll('[role="menuitem"]')),
+                    ...Array.from(listbox.querySelectorAll('[data-automation-id="menuItem"]')),
+                    ...Array.from(listbox.querySelectorAll('.wd-popup-item'))
+                ];
+
+                if (optionEls.length > 0) {
+                    // Check if options are still "Loading..."
+                    const firstText = optionEls[0].textContent?.trim().toLowerCase() || "";
+                    if (firstText !== "loading..." && firstText !== "searching...") {
+                        break; // Real options loaded! Stop polling.
+                    }
+                }
+
+                // Early exit if listbox is open but empty (no options/loading text) after 600ms
+                if (optionEls.length === 0 && (Date.now() - startTime > 600)) {
+                    console.log(`${LOG_PREFIX} ⏱️ Listbox found but empty after 600ms. Breaking early.`);
+                    break;
+                }
+            }
+
+            await sleep(pollInterval);
         }
 
-        if (!listbox) {
-            listbox = document.querySelector(
-                '[role="listbox"]:not([style*="display: none"]), ' +
-                '[role="menu"]:not([style*="display: none"]), ' +
-                '.wd-popup:not([style*="display: none"]), ' +
-                '.wd-popup-content:not([style*="display: none"])'
-            );
-        }
-
-        if (listbox) {
-            const optionEls = [
-                ...Array.from(listbox.querySelectorAll('[role="option"]')),
-                ...Array.from(listbox.querySelectorAll('[role="menuitem"]')),
-                ...Array.from(listbox.querySelectorAll('[data-automation-id="menuItem"]')),
-                ...Array.from(listbox.querySelectorAll('.wd-popup-item'))
-            ];
-
+        if (listbox && optionEls.length > 0) {
             const seen = new Set<string>();
             for (const optEl of optionEls) {
                 const text = optEl.textContent?.trim() || '';
@@ -523,11 +565,11 @@ async function scanDropdownOptions(el: HTMLElement, label: string, fieldType: st
 
             console.log(`${LOG_PREFIX} ✅ Found ${options.length} options`);
 
-            // Handle scrollable listboxes
-            if (listbox.scrollHeight > listbox.clientHeight) {
+            // Only scroll and wait if there are 10 or more options and it's scrollable
+            if (options.length >= 10 && listbox.scrollHeight > listbox.clientHeight) {
                 console.log(`${LOG_PREFIX} 📜 Scrolling to load more options...`);
                 listbox.scrollTop = listbox.scrollHeight;
-                await sleep(800);
+                await sleep(500);
 
                 const moreOptions = Array.from(listbox.querySelectorAll('[role="option"], [role="menuitem"]'));
                 for (const optEl of moreOptions) {
@@ -540,7 +582,7 @@ async function scanDropdownOptions(el: HTMLElement, label: string, fieldType: st
                 console.log(`${LOG_PREFIX} After scroll: ${options.length} total options`);
             }
         } else {
-            console.log(`${LOG_PREFIX} ⚠️  No listbox found for: "${label}"`);
+            console.log(`${LOG_PREFIX} ⚠️  No options found. Instantly moving on.`);
         }
 
         // Close dropdown
@@ -548,16 +590,16 @@ async function scanDropdownOptions(el: HTMLElement, label: string, fieldType: st
             inputEl.dispatchEvent(new KeyboardEvent('keydown', {
                 key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true
             }));
-            await sleep(100);
+            await sleep(50);
             inputEl.blur();
         }
         document.body.click();
-        await sleep(CONFIG.SCAN_CLOSE_DELAY);
+        await sleep(100); // Reduced from 400ms
 
     } catch (err) {
         console.error(`${LOG_PREFIX} ❌ Error scanning dropdown "${label}":`, err);
         document.body.click();
-        await sleep(300);
+        await sleep(100);
     }
 
     return options;

@@ -143,20 +143,31 @@ export class QuestionMapper {
         if (mappingPriority === 'AI_FIRST') {
             console.log(`🤖 [AI_FIRST] Mode active. Executing AI processing first.`);
 
-            // 1. Run AI first on all unique questions
-            if (uniqueQuestions.length > 0) {
-                console.log(`📤 Sending all ${uniqueQuestions.length} unique question(s) to AI for mapping...`);
+            // 0. Resolve custom overrides (Phase -2) first to respect user manual edits
+            const aiCandidates: ScannedQuestion[] = [];
+            for (const q of uniqueQuestions) {
+                const customResult = this.tryCustomOverride(q, profile);
+                if (customResult) {
+                    mappedAnswers.push(customResult);
+                } else {
+                    aiCandidates.push(q);
+                }
+            }
+
+            // 1. Run AI on remaining unique questions
+            if (aiCandidates.length > 0) {
+                console.log(`📤 Sending ${aiCandidates.length} remaining unique question(s) to AI for mapping...`);
 
                 // Notify UI of AI count immediately (before calling AI)
                 window.dispatchEvent(new CustomEvent('AI_COUNT_UPDATE', {
-                    detail: { count: uniqueQuestions.length }
+                    detail: { count: aiCandidates.length }
                 }));
 
-                const aiAnswers = await this.requestAIAnswers(uniqueQuestions, profile);
+                const aiAnswers = await this.requestAIAnswers(aiCandidates, profile);
 
                 // Learn from each successful AI response
                 console.log(`\n📚 Learning from AI responses...`);
-                for (const question of uniqueQuestions) {
+                for (const question of aiCandidates) {
                     const answer = aiAnswers.find(a => a.questionText === question.questionText && a.fieldType === question.fieldType);
                     if (answer) {
                         await this.learnFromAIResponse(question, answer, profile);
@@ -167,28 +178,16 @@ export class QuestionMapper {
                 console.log(`✅ AI phase complete. Learned ${aiAnswers.length} new patterns.\n`);
 
                 // 2. Identify unresolved questions to run fallbacks on
-                const unresolvedByAI = uniqueQuestions.filter(q =>
+                const unresolvedByAI = aiCandidates.filter(q =>
                     !aiAnswers.some(a => a.questionText === q.questionText && a.fieldType === q.fieldType)
                 );
 
                 if (unresolvedByAI.length > 0) {
-                    console.log(`🔄 Fallback: Resolving ${unresolvedByAI.length} unresolved question(s) using internal logic (Overrides → Hardcoded → Patterns)...`);
-
-                    // Fallback Phase -2: Custom Overrides
-                    const customFallbackRemaining: ScannedQuestion[] = [];
-                    for (const q of unresolvedByAI) {
-                        const customResult = this.tryCustomOverride(q, profile);
-                        if (customResult) {
-                            mappedAnswers.push(customResult);
-                            console.log(`     ⭐ [CUSTOM FALLBACK] "${q.questionText}" → "${customResult.answer}"`);
-                        } else {
-                            customFallbackRemaining.push(q);
-                        }
-                    }
+                    console.log(`🔄 Fallback: Resolving ${unresolvedByAI.length} unresolved question(s) using internal logic (Hardcoded → Patterns)...`);
 
                     // Fallback Phase -1: Hardcoded Engine
                     const hardcodedFallbackRemaining: ScannedQuestion[] = [];
-                    for (const q of customFallbackRemaining) {
+                    for (const q of unresolvedByAI) {
                         const hResult = this.tryHardcodedEngine(q, profile, learnedPatterns);
                         if (hResult === '__SKIP__') {
                             continue;
@@ -354,9 +353,16 @@ export class QuestionMapper {
      * Try mapping a question using custom manual overrides (Phase -2)
      */
     private tryCustomOverride(q: ScannedQuestion, profile: any): MappedAnswer | null {
-        if (profile.customAnswers && profile.customAnswers[q.questionText]) {
-            const customAnswer = profile.customAnswers[q.questionText];
-            console.log(`  ⭐ [CUSTOM] "${q.questionText}" → "${customAnswer}"`);
+        if (!profile.customAnswers) return null;
+
+        const normalizedQ = this.normalizeQuestion(q.questionText);
+        const matchedKey = Object.keys(profile.customAnswers).find(key => 
+            this.normalizeQuestion(key) === normalizedQ
+        );
+
+        if (matchedKey) {
+            const customAnswer = profile.customAnswers[matchedKey];
+            console.log(`  ⭐ [CUSTOM (Robust Match)] "${q.questionText}" (matched key: "${matchedKey}") → "${customAnswer}"`);
 
             // Validate against options if this is a dropdown/radio
             let finalAnswer: string | string[] = customAnswer;

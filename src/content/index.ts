@@ -132,6 +132,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return false;
     }
 
+    // Handle toggle/reopen panel request
+    if (message.action === 'TOGGLE_PANEL') {
+        // Only run toggle logic in the top frame
+        if (window === window.top) {
+            const host = document.getElementById("autofill-extension-host");
+            if (host) {
+                window.dispatchEvent(new CustomEvent('TOGGLE_AUTOFILL_PANEL'));
+            } else {
+                console.log("[Content] 🔄 Re-rendering overlay panel on user request...");
+                const noOpAutoFill = async () => {
+                    console.log("[Autofill] No auto-fill in Selenium-only mode");
+                };
+                const noOpFieldUpdate = (index: number, field: DetectedField) => {
+                    console.log("[Autofill] Field update:", index, field);
+                };
+                renderOverlayPanel([], noOpAutoFill, noOpFieldUpdate);
+            }
+            sendResponse({ success: true });
+            return false;
+        }
+    }
+
     return false;
 });
 
