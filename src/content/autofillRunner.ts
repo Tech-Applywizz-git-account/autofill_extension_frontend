@@ -193,7 +193,7 @@ async function runAutofill(payload: FillPayload) {
 
             // LEARN from this interaction (only if it's NEW)
             try {
-                if (rf.canonicalKey) {
+                if (rf.canonicalKey && rf.canonicalKey !== "unknown") {
                     const profile = await loadProfile();
                     let isProfileEmpty = true;
                     if (profile) {

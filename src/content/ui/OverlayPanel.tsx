@@ -999,7 +999,6 @@ const STYLES = `
   font-size: 12px;
   color: #777;
 }
-
 .ai-payload-viewer {
   margin: 16px;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
@@ -1013,6 +1012,10 @@ const STYLES = `
 @keyframes pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.15); opacity: 0.7; }
+}
+
+.copy-payload-btn:hover {
+  background: #00b371 !important;
 }
 `;
 
@@ -2582,8 +2585,36 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                             </>
                         ) : viewMode === "payload" ? (
                             <div className="ai-payload-viewer" style={{ padding: '12px', background: '#f8f9fa', borderRadius: '8px', overflow: 'auto', maxHeight: '400px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#666', textAlign: 'center' }}>
-                                    This is the exact profile & question schema sent to the AI:
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#666' }}>
+                                        This is the exact profile & question schema sent to the AI:
+                                    </span>
+                                    <button
+                                        onClick={() => {
+                                            if (aiPayload) {
+                                                navigator.clipboard.writeText(JSON.stringify(aiPayload, null, 2));
+                                                setNotification({ message: "📋 AI Payload copied to clipboard!", type: 'success' });
+                                                setTimeout(() => setNotification(null), 3000);
+                                            }
+                                        }}
+                                        style={{
+                                            padding: '4px 10px',
+                                            background: '#00d084',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            fontSize: '11px',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            transition: 'background 0.2s'
+                                        }}
+                                        className="copy-payload-btn"
+                                    >
+                                        📋 Copy Payload
+                                    </button>
                                 </div>
                                 <pre style={{ margin: 0, padding: '10px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: '#1e1e1e', color: '#d4d4d4', borderRadius: '6px', overflowX: 'auto' }}>
                                     {aiPayload ? JSON.stringify(aiPayload, null, 2) : "Loading payload..."}
@@ -2776,7 +2807,7 @@ const OverlayPanel: React.FC<OverlayPanelProps> = ({ fields: initialFields, onAu
                         </div>
 
                         <div className="panel-footer" style={{ textAlign: 'center', fontSize: '10px', color: '#999', marginTop: '20px', paddingBottom: '10px' }}>
-                            Job Application Autofill v1.3.9
+                            Job Application Autofill v1.3.10
                         </div>
                     </div>
                 )
